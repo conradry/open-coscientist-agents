@@ -117,8 +117,8 @@ def display_meta_reviews_page(state):
                                 f"• Hypotheses in Tournament: {len(tournament.hypotheses)}"
                             )
                         try:
-                            win_loss_records = tournament.get_win_loss_records()
-                            st.write(f"• Ranked Hypotheses: {len(win_loss_records)}")
+                            ranked_hypotheses = tournament.get_ranked_hypotheses()
+                            st.write(f"• Ranked Hypotheses: {len(ranked_hypotheses)}")
                         except:  # noqa: E722
                             st.write("• Tournament statistics unavailable")
                     else:

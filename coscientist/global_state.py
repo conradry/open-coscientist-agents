@@ -396,7 +396,7 @@ class CoscientistStateManager:
         ranked_order = self._state.tournament.get_sorted_hypotheses()
         # The records dictionary tells us which hypotheses have competed
         # already and are therefore qualified for evolution.
-        have_competed = self._state.tournament.get_win_loss_records().keys()
+        have_competed = self._state.tournament.get_ranked_hypotheses()
 
         return [h_id for h_id, _ in ranked_order if h_id in have_competed]
 
@@ -479,7 +479,7 @@ class CoscientistStateManager:
         Get the number of hypotheses that have not yet been ranked in the tournament.
         """
         return len(self._state.tournament.hypotheses) - len(
-            self._state.tournament.get_win_loss_records()
+            self._state.tournament.get_ranked_hypotheses()
         )
 
     @property
@@ -576,7 +576,7 @@ class CoscientistStateManager:
         """
         self._state.meta_reviews.append(meta_review)
         self._state.num_ranked_hypotheses_at_meta_review = len(
-            self._state.tournament.get_win_loss_records()
+            self._state.tournament.get_ranked_hypotheses()
         )
 
     @_maybe_save(n=1)
@@ -997,7 +997,7 @@ class CoscientistStateManager:
 
         # Calculate new hypotheses since last meta-review
         current_ranked_hypotheses = (
-            len(self._state.tournament.get_win_loss_records())
+            len(self._state.tournament.get_ranked_hypotheses())
             if self._state.tournament
             else 0
         )
