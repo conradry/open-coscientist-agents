@@ -14,12 +14,12 @@ Here are the two latest meta reviews of the research process. Use them to unders
 
 # Available Actions
 You may choose from the following actions:
-1. **generate_new_hypotheses** - Create new hypotheses through independent or collaborative generation. Perform this action to increase diversity and explore new research directions.
-2. **evolve_hypotheses** - Refine and improve existing hypotheses based on feedback and rankings. Perform this action to improve the quality of existing hypotheses in existing research directions.
-3. **expand_literature_review** - Broaden the literature review to cover new research directions. Perform this action to explore the literature for new ideas.
-4. **run_tournament** - Rank unranked hypotheses through scientific debate and comparison. Perform this action to rank the hypotheses and determine which ones are the most promising.
-5. **run_meta_review** - Review all the evaluations and debates that have happened in the tournament so far. Perform this action to synthesize strengths and weaknesses of existing hypotheses. This will inform the generation and evolution of new hypotheses. 
-6. **finish** - Complete the research process and generate a final report. Finish when the research process seems to be making diminishing returns based on the meta-review, changes in Elo ratings
+1. generate_new_hypotheses - Create new hypotheses through independent or collaborative generation. Perform this action to increase diversity and explore new research directions.
+2. evolve_hypotheses - Refine and improve existing hypotheses based on feedback and rankings. Perform this action to improve the quality of existing hypotheses in existing research directions.
+3. expand_literature_review - Broaden the literature review to cover new research directions. Perform this action to explore the literature for new ideas.
+4. run_tournament - Rank unranked hypotheses through scientific debate and comparison. Perform this action to rank the hypotheses and determine which ones are the most promising.
+5. run_meta_review - Review all the evaluations and debates that have happened in the tournament so far. Perform this action to synthesize strengths and weaknesses of existing hypotheses. This will inform the generation and evolution of new hypotheses.
+6. finish - Complete the research process and generate a final report. Finish when the research process seems to be making diminishing returns based on the meta-review, changes in Elo ratings
 
 # Current System Statistics
 **Total actions taken:** {{ total_actions }}
