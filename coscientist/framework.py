@@ -6,7 +6,12 @@ by a supervisor agent.
 
 import logging
 import math
+import os
 import random
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 import numpy as np
 from langchain_anthropic import ChatAnthropic
@@ -32,28 +37,50 @@ from coscientist.supervisor_agent import build_supervisor_agent
 # Generally reasoning models are better suited for the scientific reasoning
 # tasks entailed by the Coscientist system.
 _SMARTER_LLM_POOL = {
-    "o3": ChatOpenAI(model="o3", max_tokens=50_000, max_retries=3),
+    "o3": ChatOpenAI(
+        model="o3",
+        max_tokens=50_000,
+        max_retries=3,
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url=os.getenv("OPENAI_API_BASE")
+    ),
     "gemini-2.5-pro": ChatGoogleGenerativeAI(
         model="gemini-2.5-pro",
         temperature=1.0,
         max_retries=3,
         max_tokens=50_000,
+        google_api_key=os.getenv("GOOGLE_API_KEY"),
     ),
     "claude-sonnet-4-20250514": ChatAnthropic(
-        model="claude-sonnet-4-20250514", max_tokens=50_000, max_retries=3
+        model="claude-sonnet-4-20250514",
+        max_tokens=50_000,
+        max_retries=3,
+        api_key=os.getenv("ANTHROPIC_AUTH_TOKEN"),
+        base_url=os.getenv("ANTHROPIC_BASE_URL")
     ),
 }
 _CHEAPER_LLM_POOL = {
-    "o4-mini": ChatOpenAI(model="o4-mini", max_tokens=50_000, max_retries=3),
+    "o4-mini": ChatOpenAI(
+        model="o4-mini",
+        max_tokens=50_000,
+        max_retries=3,
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url=os.getenv("OPENAI_API_BASE")
+    ),
     "gemini-2.5-flash": ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         temperature=1.0,
         max_retries=3,
         max_tokens=50_000,
+        google_api_key=os.getenv("GOOGLE_API_KEY"),
     ),
     # Anthropic doesn't have a good cheaper model
     "claude-sonnet-4-20250514": ChatAnthropic(
-        model="claude-sonnet-4-20250514", max_tokens=50_000, max_retries=3
+        model="claude-sonnet-4-20250514",
+        max_tokens=50_000,
+        max_retries=3,
+        api_key=os.getenv("ANTHROPIC_AUTH_TOKEN"),
+        base_url=os.getenv("ANTHROPIC_BASE_URL")
     ),
 }
 
@@ -103,7 +130,10 @@ class CoscientistConfig:
             "claude-sonnet-4-20250514"
         ],
         proximity_agent_embedding_model: Embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small", dimensions=256
+            model="text-embedding-3-small",
+            dimensions=256,
+            api_key=os.getenv("OPENAI_API_KEY"),
+            base_url=os.getenv("OPENAI_API_BASE")
         ),
         specialist_fields: list[str] | None = None,
     ):
