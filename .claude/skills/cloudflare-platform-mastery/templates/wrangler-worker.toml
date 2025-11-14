@@ -1,0 +1,213 @@
+# Cloudflare Workers Configuration Template
+# Production-ready configuration with best practices
+
+# Basic worker configuration
+name = "my-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Account configuration
+account_id = "your-account-id-here"
+workers_dev = true
+
+# Environment configurations
+[env.development]
+name = "my-worker-dev"
+workers_dev = true
+
+[env.staging]
+name = "my-worker-staging"
+workers_dev = false
+
+[env.production]
+name = "my-worker"
+workers_dev = false
+
+# KV namespace bindings
+[[kv_namespaces]]
+binding = "CACHE"
+id = "your-cache-kv-namespace-id"
+preview_id = "your-cache-kv-preview-id"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "your-sessions-kv-namespace-id"
+preview_id = "your-sessions-kv-preview-id"
+
+[[kv_namespaces]]
+binding = "CONFIG"
+id = "your-config-kv-namespace-id"
+preview_id = "your-config-kv-preview-id"
+
+# D1 database bindings
+[[d1_databases]]
+binding = "DB"
+database_name = "my-worker-db"
+database_id = "your-d1-database-id"
+
+[env.development.d1_databases]
+binding = "DB"
+database_name = "my-worker-db-dev"
+database_id = "your-d1-database-id-dev"
+
+[env.staging.d1_databases]
+binding = "DB"
+database_name = "my-worker-db-staging"
+database_id = "your-d1-database-id-staging"
+
+[env.production.d1_databases]
+binding = "DB"
+database_name = "my-worker-db"
+database_id = "your-d1-database-id"
+
+# R2 storage bindings
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "my-worker-assets"
+
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "my-worker-uploads"
+
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "my-worker-backups"
+
+# Durable Objects bindings
+[[durable_objects.bindings]]
+name = "WEBSOCKET_MANAGER"
+class_name = "WebSocketManager"
+script_name = "my-worker"
+
+[[durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+script_name = "my-worker"
+
+# Queue producers
+[[queues.producers]]
+binding = "ANALYTICS_QUEUE"
+queue = "analytics-events"
+
+[[queues.producers]]
+binding = "EMAIL_QUEUE"
+queue = "email-notifications"
+
+# Queue consumers
+[[queues.consumers]]
+queue = "analytics-events"
+max_batch_size = 100
+max_batch_timeout_seconds = 30
+
+[[queues.consumers]]
+queue = "email-notifications"
+max_batch_size = 10
+max_batch_timeout_seconds = 60
+
+# Cron triggers for scheduled jobs
+[[triggers]]
+crons = ["0 */6 * * *"]  # Every 6 hours
+
+[env.production.triggers]
+crons = ["0 2 * * *"]  # Daily at 2 AM
+
+# Routes configuration (for custom domains)
+routes = [
+    { pattern = "api.example.com/*", zone_name = "example.com" },
+    { pattern = "workers.example.com/*", zone_name = "example.com" }
+]
+
+[env.staging.routes]
+routes = [
+    { pattern = "api-staging.example.com/*", zone_name = "example.com" }
+]
+
+# Analytics Engine bindings
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+
+[env.production.analytics_engine_datasets]
+binding = "ANALYTICS"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "info"
+API_VERSION = "v1"
+MAX_REQUEST_SIZE = "10485760"  # 10MB
+RATE_LIMIT_REQUESTS = "100"
+RATE_LIMIT_WINDOW = "60"  # 1 minute
+
+[env.development.vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "debug"
+API_VERSION = "v1"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+LOG_LEVEL = "info"
+API_VERSION = "v1"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "warn"
+API_VERSION = "v1"
+
+# Limits and restrictions
+[limits]
+cpu_ms = 50000  # 50 seconds
+
+[env.production.limits]
+cpu_ms = 50000
+
+# Build configuration
+[build]
+command = "npm run build"
+watch_dir = "src"
+
+# Site configuration (for workers with static assets)
+[site]
+bucket = "./public"
+entry-point = "workers-site"
+
+# Compatibility flags
+compatibility_flags = ["nodejs_compat", "webstandard_api"]
+
+# Variable bindings for secrets
+[vars]
+# Note: Store sensitive values in wrangler secrets, not here
+# Use: wrangler secret put VARIABLE_NAME
+
+# Example secret variables (to be set via CLI):
+# - DATABASE_URL
+# - JWT_SECRET
+# - API_KEYS
+# - WEBHOOK_SECRET
+# - ENCRYPTION_KEY
+
+# Service bindings for inter-worker communication
+[[services]]
+binding = "AUTH_SERVICE"
+service = "auth-worker"
+
+[[services]]
+binding = "NOTIFICATION_SERVICE"
+service = "notification-worker"
+
+# Environment-specific service bindings
+[env.production.services]
+binding = "AUTH_SERVICE"
+service = "auth-worker-prod"
+
+# TGZ configuration for larger deployments
+[tgz]
+compress = true
+
+# Observability and monitoring
+[observability]
+enabled = true
+
+# Placement (Edge location preferences)
+[placement]
+mode = "smart"

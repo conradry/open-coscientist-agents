@@ -1,0 +1,113 @@
+{
+  "description": "Basic DNS zone configuration for Foundation learning path",
+  "zone_name": "yourdomain.com",
+  "records": [
+    {
+      "type": "A",
+      "name": "@",
+      "content": "192.168.1.1",
+      "ttl": 300,
+      "comment": "Root domain - points to your origin server"
+    },
+    {
+      "type": "A",
+      "name": "@",
+      "content": "192.168.1.2",
+      "ttl": 300,
+      "comment": "Root domain - backup server"
+    },
+    {
+      "type": "CNAME",
+      "name": "www",
+      "content": "yourdomain.com",
+      "ttl": 300,
+      "comment": "WWW subdomain - points to root domain"
+    },
+    {
+      "type": "A",
+      "name": "api",
+      "content": "192.168.1.3",
+      "ttl": 300,
+      "comment": "API subdomain - backend server"
+    },
+    {
+      "type": "A",
+      "name": "cdn",
+      "content": "192.168.1.4",
+      "ttl": 300,
+      "comment": "CDN subdomain - static assets server"
+    },
+    {
+      "type": "MX",
+      "name": "@",
+      "content": "mail.yourdomain.com",
+      "priority": 10,
+      "ttl": 3600,
+      "comment": "Mail exchange record"
+    },
+    {
+      "type": "TXT",
+      "name": "@",
+      "content": "v=spf1 include:_spf.google.com ~all",
+      "ttl": 3600,
+      "comment": "SPF record for email security"
+    },
+    {
+      "type": "CAA",
+      "name": "@",
+      "content": "0 issue \"letsencrypt.org\"",
+      "ttl": 3600,
+      "comment": "Certificate Authority Authorization"
+    },
+    {
+      "type": "NS",
+      "name": "@",
+      "content": "ns1.cloudflare.com",
+      "ttl": 86400,
+      "comment": "Cloudflare nameserver 1"
+    },
+    {
+      "type": "NS",
+      "name": "@",
+      "content": "ns2.cloudflare.com",
+      "ttl": 86400,
+      "comment": "Cloudflare nameserver 2"
+    }
+  ],
+  "configuration": {
+    "ttl": {
+      "default": 300,
+      "minimum": 60
+    },
+    "proxy_status": {
+      "proxied": ["@", "www", "api"],
+      "dns_only": ["cdn", "mail"]
+    },
+    "geo_location": {
+      "enabled": true,
+      "default_country": "US"
+    }
+  },
+  "best_practices": {
+    "low_ttl": [
+      "A records for dynamic IPs",
+      "CNAME records for load balancing",
+      "Service discovery records"
+    ],
+    "high_ttl": [
+      "Static IP addresses",
+      "Permanent subdomains",
+      "Mail server records"
+    ],
+    "always_proxy": [
+      "Web-facing domains",
+      "API endpoints",
+      "User-facing applications"
+    ],
+    "dns_only": [
+      "Internal services",
+      "Database servers",
+      "Development environments"
+    ]
+  }
+}

@@ -1,0 +1,133 @@
+# Basic CDN Configuration Template
+# Foundation learning path - optimize for 20-40% performance improvement
+
+domain: "yourdomain.com"
+environment: "development"
+
+# SSL Configuration
+ssl:
+  mode: "flexible"  # Options: off, flexible, full, strict
+  min_version: "TLSv1.2"
+  ciphers:
+    - "ECDHE-RSA-AES128-GCM-SHA256"
+    - "ECDHE-RSA-AES256-GCM-SHA384"
+    - "ECDHE-RSA-AES128-SHA256"
+  hsts:
+    enabled: false  # Enable in production
+    max_age: 31536000
+    include_subdomains: true
+    preload: false
+
+# Caching Configuration
+cache:
+  cache_level: "simplified"  # Options: bypassed, basic, simplified, aggressive, cache_everything
+  browser_cache_ttl: 14400  # 4 hours
+  edge_cache_ttl: 86400     # 24 hours
+  bybass_on_cookie: false
+
+# Cache Rules based on content type
+cache_rules:
+  - name: "static_assets"
+    description: "Cache static assets aggressively"
+    match:
+      content_type:
+        - "text/css"
+        - "application/javascript"
+        - "image/jpeg"
+        - "image/png"
+        - "image/gif"
+        - "image/webp"
+        - "font/woff2"
+    ttl: 2592000  # 30 days
+    browser_ttl: 604800  # 7 days
+
+  - name: "api_responses"
+    description: "Cache API responses moderately"
+    match:
+      url_pattern: "/api/*"
+    ttl: 300  # 5 minutes
+    browser_ttl: 60
+
+  - name: "html_pages"
+    description: "Cache HTML pages briefly"
+    match:
+      content_type: "text/html"
+    ttl: 1800  # 30 minutes
+    browser_ttl: 300
+
+# Performance Features
+performance:
+  auto_minify:
+    html: true
+    css: true
+    js: true
+  brotli: true
+  early_hints: true
+  http2: true
+  http3: true
+
+# Image Optimization
+image_optimization:
+  enabled: true
+  webp: true
+  avif: true
+  quality: 85
+  sharpening: 0
+
+# Security Settings
+security:
+  security_level: "medium"  # Options: off, essentially_off, low, medium, high, under_attack
+  bot_fight_mode: false  # Enable in production
+  challenge_ttl: 1800
+
+# Development Settings
+development:
+  development_mode: true  # Disable in production
+  always_online: true
+  sort_query_string_for_cache: true
+
+# Logging and Analytics
+analytics:
+  log_requests: true
+  log_headers: false
+  retention_days: 7
+
+# Error Pages
+error_pages:
+  404: "Custom 404 page not found"
+  500: "Server error - please try again"
+  503: "Service temporarily unavailable"
+
+# Mobile Redirect (if needed)
+mobile_redirect:
+  enabled: false
+  mobile_subdomain: "m"
+
+# Workers Routes (basic configuration)
+workers:
+  routes:
+    - pattern: "yourdomain.com/api/*"
+      service_name: "api-worker"
+
+# DNS Settings
+dns:
+  record_type: "A"  # Auto-configure based on your origin
+  proxied: true
+  ttl: 300
+
+# Edge Certificates
+certificates:
+  preferred_certificate: "lets_encrypt"
+  certificate_status: "active"
+
+# Network Settings
+network:
+  ip_geolocation: true
+  max_upload: 100  # MB
+
+# Expected Performance Outcomes
+expected_results:
+  performance_improvement: "20-40% faster load times"
+  bandwidth_savings: "15-25% reduction"
+  ssl_coverage: "100% encrypted traffic"
+  cache_hit_ratio: "60-80% after first week"

@@ -1,0 +1,418 @@
+# Cloudflare D1 Database Configuration Template
+# Complete D1 database setup with migrations and best practices
+
+# Basic worker configuration (if worker needs D1 access)
+name = "my-d1-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Account configuration
+account_id = "your-account-id-here"
+
+# Environment configurations
+[env.development]
+name = "my-d1-worker-dev"
+
+[env.staging]
+name = "my-d1-worker-staging"
+
+[env.production]
+name = "my-d1-worker"
+
+# Primary D1 database bindings
+[[d1_databases]]
+binding = "DB"
+database_name = "my-primary-db"
+database_id = "your-primary-db-id"
+migrations_dir = "migrations"
+
+# Development database
+[env.development.d1_databases]
+binding = "DB"
+database_name = "my-primary-db-dev"
+database_id = "your-primary-db-id-dev"
+migrations_dir = "migrations"
+
+# Staging database
+[env.staging.d1_databases]
+binding = "DB"
+database_name = "my-primary-db-staging"
+database_id = "your-primary-db-id-staging"
+migrations_dir = "migrations"
+
+# Production database
+[env.production.d1_databases]
+binding = "DB"
+database_name = "my-primary-db-prod"
+database_id = "your-primary-db-id-prod"
+migrations_dir = "migrations"
+
+# Secondary database bindings (for multi-database applications)
+[[d1_databases]]
+binding = "CACHE_DB"
+database_name = "my-cache-db"
+database_id = "your-cache-db-id"
+migrations_dir = "migrations/cache"
+
+[env.development.d1_databases]
+binding = "CACHE_DB"
+database_name = "my-cache-db-dev"
+database_id = "your-cache-db-id-dev"
+migrations_dir = "migrations/cache"
+
+[env.staging.d1_databases]
+binding = "CACHE_DB"
+database_name = "my-cache-db-staging"
+database_id = "your-cache-db-id-staging"
+migrations_dir = "migrations/cache"
+
+[env.production.d1_databases]
+binding = "CACHE_DB"
+database_name = "my-cache-db-prod"
+database_id = "your-cache-db-id-prod"
+migrations_dir = "migrations/cache"
+
+# Analytics database bindings
+[[d1_databases]]
+binding = "ANALYTICS_DB"
+database_name = "my-analytics-db"
+database_id = "your-analytics-db-id"
+migrations_dir = "migrations/analytics"
+
+[env.production.d1_databases]
+binding = "ANALYTICS_DB"
+database_name = "my-analytics-db-prod"
+database_id = "your-analytics-db-id-prod"
+migrations_dir = "migrations/analytics"
+
+# Session database bindings
+[[d1_databases]]
+binding = "SESSION_DB"
+database_name = "my-session-db"
+database_id = "your-session-db-id"
+migrations_dir = "migrations/sessions"
+
+# Audit log database bindings
+[[d1_databases]]
+binding = "AUDIT_DB"
+database_name = "my-audit-db"
+database_id = "your-audit-db-id"
+migrations_dir = "migrations/audit"
+
+# Environment variables for database configuration
+[vars]
+# Database connection settings
+DB_TIMEOUT = "5000"  # 5 seconds
+DB_MAX_CONNECTIONS = "100"
+DB_CONNECTION_POOL_SIZE = "10"
+DB_QUERY_TIMEOUT = "10000"  # 10 seconds
+DB_BATCH_SIZE = "100"
+
+# Database features
+ENABLE_QUERY_CACHE = "true"
+ENABLE_SLOW_QUERY_LOG = "true"
+SLOW_QUERY_THRESHOLD = "1000"  # milliseconds
+ENABLE_AUTO_VACUUM = "true"
+VACUUM_FREQUENCY = "86400"  # 24 hours in seconds
+
+# Backup and replication settings
+AUTO_BACKUP_ENABLED = "true"
+BACKUP_RETENTION_DAYS = "30"
+BACKUP_COMPRESSION = "true"
+ENABLE_READ_REPLICA = "false"
+
+[env.development.vars]
+# Development database settings
+DB_TIMEOUT = "10000"  # 10 seconds (more lenient for dev)
+DB_MAX_CONNECTIONS = "10"
+ENABLE_QUERY_CACHE = "false"
+ENABLE_SLOW_QUERY_LOG = "false"
+AUTO_BACKUP_ENABLED = "false"
+
+[env.staging.vars]
+# Staging database settings
+DB_TIMEOUT = "5000"
+DB_MAX_CONNECTIONS = "50"
+ENABLE_QUERY_CACHE = "true"
+ENABLE_SLOW_QUERY_LOG = "true"
+SLOW_QUERY_THRESHOLD = "500"  # More sensitive in staging
+AUTO_BACKUP_ENABLED = "true"
+BACKUP_RETENTION_DAYS = "7"
+
+[env.production.vars]
+# Production database settings
+DB_TIMEOUT = "3000"  # Stricter timeout
+DB_MAX_CONNECTIONS = "200"
+DB_CONNECTION_POOL_SIZE = "20"
+DB_QUERY_TIMEOUT = "8000"
+DB_BATCH_SIZE = "500"
+ENABLE_QUERY_CACHE = "true"
+ENABLE_SLOW_QUERY_LOG = "true"
+SLOW_QUERY_THRESHOLD = "2000"  # 2 seconds
+ENABLE_AUTO_VACUUM = "true"
+VACUUM_FREQUENCY = "43200"  # 12 hours
+AUTO_BACKUP_ENABLED = "true"
+BACKUP_RETENTION_DAYS = "90"
+BACKUP_COMPRESSION = "true"
+ENABLE_READ_REPLICA = "true"
+
+# KV namespace for database cache
+[[kv_namespaces]]
+binding = "DB_CACHE"
+id = "your-db-cache-kv-namespace-id"
+preview_id = "your-db-cache-kv-preview-id"
+
+[[kv_namespaces]]
+binding = "QUERY_CACHE"
+id = "your-query-cache-kv-namespace-id"
+preview_id = "your-query-cache-kv-preview-id"
+
+# Queue bindings for database operations
+[[queues.producers]]
+binding = "DB_BACKUP_QUEUE"
+queue = "database-backup-jobs"
+
+[[queues.producers]]
+binding = "DB_MAINTENANCE_QUEUE"
+queue = "database-maintenance-jobs"
+
+[[queues.producers]]
+binding = "ANALYTICS_QUEUE"
+queue = "database-analytics-jobs"
+
+[[queues.consumers]]
+queue = "database-backup-jobs"
+max_batch_size = 1  # One backup at a time
+max_batch_timeout_seconds = 300  # 5 minutes
+
+[[queues.consumers]]
+queue = "database-maintenance-jobs"
+max_batch_size = 5
+max_batch_timeout_seconds = 600  # 10 minutes
+
+[[queues.consumers]]
+queue = "database-analytics-jobs"
+max_batch_size = 100
+max_batch_timeout_seconds = 30
+
+# Cron triggers for database maintenance
+[[triggers]]
+crons = ["0 2 * * *"]  # Daily at 2 AM for backups
+
+[[triggers]]
+crons = ["0 3 * * 0"]  # Weekly on Sunday at 3 AM for vacuum
+
+[[triggers]]
+crons = ["0 4 * * *"]  # Daily at 4 AM for analytics processing
+
+[env.development.triggers]
+# Less frequent maintenance in development
+crons = ["0 4 * * *"]  # Daily at 4 AM only
+
+[env.staging.triggers]
+# Staging maintenance schedule
+crons = ["0 2 * * *", "0 3 * * 0"]
+
+[env.production.triggers]
+# Production maintenance schedule
+crons = ["0 2 * * *", "0 3 * * 0", "0 4 * * *"]
+
+# Durable Objects for database connection pooling
+[[durable_objects.bindings]]
+name = "DB_CONNECTION_POOL"
+class_name = "DatabaseConnectionPool"
+
+[[durable_objects.bindings]]
+name = "QUERY_CACHE_MANAGER"
+class_name = "QueryCacheManager"
+
+# Analytics Engine for database monitoring
+[[analytics_engine_datasets]]
+binding = "DB_PERFORMANCE"
+
+[[analytics_engine_datasets]]
+binding = "DB_QUERIES"
+
+[[analytics_engine_datasets]]
+binding = "DB_ERRORS"
+
+# Environment variables for database monitoring
+[vars]
+# Monitoring settings
+MONITOR_SLOW_QUERIES = "true"
+MONITOR_CONNECTION_COUNT = "true"
+MONITOR_DATABASE_SIZE = "true"
+MONITOR_CACHE_HIT_RATIO = "true"
+QUERY_LOG_RETENTION_DAYS = "7"
+
+# Alert thresholds
+ALERT_SLOW_QUERY_THRESHOLD = "5000"  # milliseconds
+ALERT_CONNECTION_THRESHOLD = "80"    # percentage
+ALERT_DATABASE_SIZE_THRESHOLD = "5"  # GB
+ALERT_CACHE_HIT_RATIO_THRESHOLD = "80" # percentage
+
+[env.production.vars]
+# Production monitoring settings
+MONITOR_SLOW_QUERIES = "true"
+MONITOR_CONNECTION_COUNT = "true"
+MONITOR_DATABASE_SIZE = "true"
+MONITOR_CACHE_HIT_RATIO = "true"
+QUERY_LOG_RETENTION_DAYS = "30"
+ALERT_SLOW_QUERY_THRESHOLD = "2000"  # Stricter in production
+ALERT_CONNECTION_THRESHOLD = "70"    # Lower threshold for production
+ALERT_DATABASE_SIZE_THRESHOLD = "10" # Higher threshold for production
+
+[env.staging.vars]
+# Staging monitoring settings
+MONITOR_SLOW_QUERIES = "true"
+MONITOR_CONNECTION_COUNT = "true"
+MONITOR_DATABASE_SIZE = "false"
+MONITOR_CACHE_HIT_RATIO = "true"
+QUERY_LOG_RETENTION_DAYS = "7"
+ALERT_SLOW_QUERY_THRESHOLD = "1000"
+ALERT_CONNECTION_THRESHOLD = "80"
+
+[env.development.vars]
+# Development monitoring settings
+MONITOR_SLOW_QUERIES = "false"
+MONITOR_CONNECTION_COUNT = "false"
+MONITOR_DATABASE_SIZE = "false"
+MONITOR_CACHE_HIT_RATIO = "false"
+QUERY_LOG_RETENTION_DAYS = "1"
+
+# Migration configuration
+[migrations]
+# Migration settings
+auto_apply = false
+backup_before_migration = true
+validate_migration = true
+enable_rollback = true
+max_migration_time = "300"  # 5 minutes
+
+[env.development.migrations]
+auto_apply = true
+backup_before_migration = false
+validate_migration = true
+enable_rollback = true
+
+[env.staging.migrations]
+auto_apply = false
+backup_before_migration = true
+validate_migration = true
+enable_rollback = true
+max_migration_time = "600"  # 10 minutes
+
+[env.production.migrations]
+auto_apply = false
+backup_before_migration = true
+validate_migration = true
+enable_rollback = true
+max_migration_time = "900"  # 15 minutes
+require_manual_approval = true
+
+# Security settings for D1
+[security]
+# Database security
+enable_row_level_security = true
+enable_query_parameterization = true
+enable_sql_injection_protection = true
+max_query_result_size = "1048576"  # 1MB
+enable_query_timeout = true
+
+[env.production.security]
+enable_row_level_security = true
+enable_query_parameterization = true
+enable_sql_injection_protection = true
+max_query_result_size = "1048576"
+enable_query_timeout = true
+require_encrypted_connections = true
+enable_audit_logging = true
+
+[env.staging.security]
+enable_row_level_security = true
+enable_query_parameterization = true
+enable_sql_injection_protection = true
+max_query_result_size = "2097152"  # 2MB (more lenient for staging)
+enable_query_timeout = true
+enable_audit_logging = true
+
+[env.development.security]
+enable_row_level_security = false  # More relaxed for development
+enable_query_parameterization = true
+enable_sql_injection_protection = true
+max_query_result_size = "10485760"  # 10MB (relaxed for dev)
+enable_query_timeout = true
+enable_audit_logging = false
+
+# Database performance optimization
+[performance]
+# Performance settings
+enable_query_planner = true
+enable_index_hints = true
+enable_result_caching = true
+cache_ttl = "300"  # 5 minutes
+enable_compression = true
+
+[env.production.performance]
+enable_query_planner = true
+enable_index_hints = true
+enable_result_caching = true
+cache_ttl = "1800"  # 30 minutes
+enable_compression = true
+enable_read_replica_routing = true
+
+[env.staging.performance]
+enable_query_planner = true
+enable_index_hints = false
+enable_result_caching = true
+cache_ttl = "600"  # 10 minutes
+enable_compression = true
+
+[env.development.performance]
+enable_query_planner = false
+enable_index_hints = false
+enable_result_caching = false
+cache_ttl = "60"  # 1 minute
+enable_compression = false
+
+# Database scaling configuration
+[scaling]
+# Scaling settings
+enable_auto_scaling = true
+min_connections = "1"
+max_connections = "100"
+connection_timeout = "30"
+idle_timeout = "300"
+
+[env.production.scaling]
+enable_auto_scaling = true
+min_connections = "5"
+max_connections = "500"
+connection_timeout = "15"
+idle_timeout = "120"
+
+[env.staging.scaling]
+enable_auto_scaling = true
+min_connections = "2"
+max_connections = "50"
+connection_timeout = "30"
+idle_timeout = "300"
+
+[env.development.scaling]
+enable_auto_scaling = false
+min_connections = "1"
+max_connections = "10"
+connection_timeout = "60"
+idle_timeout = "600"
+
+# Variable bindings for secrets (set via CLI)
+# Note: Store sensitive values in wrangler secrets, not here
+# Use: wrangler secret put VARIABLE_NAME
+
+# Example secret variables for D1:
+# - DATABASE_ENCRYPTION_KEY
+# - BACKUP_ENCRYPTION_KEY
+# - DATABASE_PASSWORDS (for external connections)
+# - REPLICATION_KEYS
+# - AUDIT_LOG_KEY

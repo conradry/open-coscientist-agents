@@ -1,0 +1,446 @@
+name: Cloudflare Platform Mastery - Continuous Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run comprehensive tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - performance
+          - security
+          - validation
+
+env:
+  NODE_VERSION: '18'
+  TIMEOUT_MINUTES: 30
+
+jobs:
+  # Code Quality and Validation
+  validate-skill:
+    name: Validate Skill Structure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+          fi
+
+      - name: Validate skill structure
+        run: |
+          node validation/skill-validator.js
+
+      - name: Validate documentation
+        run: |
+          node qa/documentation-validator.js
+
+      - name: Check code quality
+        run: |
+          node qa/code-quality-checker.js
+
+      - name: Validate integrations
+        run: |
+          node validation/integration-validator.js
+
+  # User Experience Testing
+  test-user-experience:
+    name: Test User Experience
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Test user experience
+        run: |
+          node validation/user-experience-tester.js
+
+  # Unit Tests
+  run-unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        test-suite: [worker-code-validator, cloudflare-api-validator]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+          fi
+
+      - name: Run unit tests
+        run: |
+          npm test -- tests/unit-tests/${{ matrix.test-suite }}.test.js
+
+      - name: Generate coverage report
+        run: |
+          npm run test:coverage -- tests/unit-tests/${{ matrix.test-suite }}.test.js
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unit-tests-${{ matrix.test-suite }}
+
+  # Integration Tests
+  run-integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+          fi
+
+      - name: Run integration tests
+        run: |
+          npm test -- tests/integration-tests/deployment-workflow.test.js
+
+  # Performance Tests
+  run-performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run performance tests
+        run: |
+          node tests/performance-tests/worker-performance.test.js
+
+      - name: Generate performance report
+        run: |
+          node qa/worker-performance-analyzer.js --report --output performance-report.json
+
+      - name: Upload performance report
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-report
+          path: performance-report.json
+
+  # Security Tests
+  run-security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run security vulnerability scan
+        run: |
+          node tests/security-tests/security-vulnerability-scanner.test.js
+
+      - name: Run dependency security audit
+        run: |
+          if [ -f package.json ]; then
+            npm audit --audit-level moderate
+          fi
+
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+  # Scenario Testing
+  run-scenario-tests:
+    name: Scenario Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        scenario: [basic-deployment, performance-optimization]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run scenario test
+        run: |
+          node scenarios/${{ matrix.scenario }}-scenario.js
+
+      - name: Upload scenario results
+        uses: actions/upload-artifact@v3
+        with:
+          name: scenario-results-${{ matrix.scenario }}
+          path: scenario-results-${{ matrix.scenario }}.json
+
+  # Metrics Collection
+  collect-metrics:
+    name: Collect Success Metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Collect learning effectiveness metrics
+        run: |
+          node metrics/learning-effectiveness-metrics.js --output learning-metrics.json
+
+      - name: Collect deployment success metrics
+        run: |
+          node metrics/deployment-success-metrics.js --output deployment-metrics.json
+
+      - name: Generate metrics dashboard
+        run: |
+          node ci/metrics-dashboard.js --input learning-metrics.json deployment-metrics.json --output metrics-dashboard.html
+
+      - name: Upload metrics reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: metrics-reports
+          path: |
+            learning-metrics.json
+            deployment-metrics.json
+            metrics-dashboard.html
+
+  # Comprehensive Test Report
+  generate-test-report:
+    name: Generate Test Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [
+      validate-skill,
+      test-user-experience,
+      run-unit-tests,
+      run-integration-tests,
+      run-performance-tests,
+      run-security-tests,
+      run-scenario-tests,
+      collect-metrics
+    ]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate comprehensive report
+        run: |
+          node ci/test-reporter.js \
+            --input . \
+            --output test-report.html \
+            --format html
+
+      - name: Generate test summary
+        run: |
+          node ci/test-reporter.js \
+            --input . \
+            --output test-summary.md \
+            --format markdown
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v3
+        with:
+          name: comprehensive-test-report
+          path: |
+            test-report.html
+            test-summary.md
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('test-summary.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🧪 Test Results\n\n${summary}`
+            });
+
+  # Health Check
+  health-check:
+    name: Overall Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [generate-test-report]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download test report
+        uses: actions/download-artifact@v3
+        with:
+          name: comprehensive-test-report
+          path: ./reports
+
+      - name: Run health check
+        run: |
+          node ci/health-check.js --report ./reports/test-report.html
+
+      - name: Set health status
+        if: failure()
+        run: |
+          echo "HEALTH_STATUS=failing" >> $GITHUB_ENV
+
+      - name: Update commit status
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const status = process.env.HEALTH_STATUS === 'failing' ? 'failure' : 'success';
+
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: status,
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              description: status === 'success' ? 'All tests passing' : 'Some tests failing',
+              context: 'cloudflare-skill-tests'
+            });
+
+  # Notification (on failure)
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [health-check]
+    if: failure() && github.event_name != 'pull_request'
+
+    steps:
+      - name: Send notification
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // Placeholder for notification logic
+            // Could integrate with Slack, email, or other notification systems
+            console.log('Tests failed - notification sent');
+
+# Conditional job execution based on workflow input
+jobs:
+  conditional-tests:
+    name: Conditional Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run selected tests
+        run: |
+          case "${{ github.event.inputs.test_type }}" in
+            "unit")
+              npm test -- tests/unit-tests/
+              ;;
+            "integration")
+              npm test -- tests/integration-tests/
+              ;;
+            "performance")
+              node tests/performance-tests/
+              ;;
+            "security")
+              node tests/security-tests/
+              ;;
+            "validation")
+              node validation/skill-validator.js
+              ;;
+            "all")
+              npm test
+              node validation/skill-validator.js
+              node qa/documentation-validator.js
+              ;;
+          esac

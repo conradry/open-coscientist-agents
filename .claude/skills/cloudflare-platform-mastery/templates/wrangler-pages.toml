@@ -1,0 +1,345 @@
+# Cloudflare Pages Configuration Template
+# Optimized configuration for static and dynamic sites
+
+# Basic Pages configuration
+name = "my-pages-project"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Production configuration
+[env.production]
+name = "my-pages-project"
+
+# Staging configuration
+[env.staging]
+name = "my-pages-project-staging"
+
+# Development configuration
+[env.development]
+name = "my-pages-project-dev"
+
+# Build configuration
+[build]
+command = "npm run build"
+cwd = ""
+watch_dir = "src"
+
+# Production build overrides
+[env.production.build]
+command = "npm run build:prod"
+
+# Staging build overrides
+[env.staging.build]
+command = "npm run build:staging"
+
+# Development build overrides
+[env.development.build]
+command = "npm run dev"
+
+# Functions configuration (for Pages Functions)
+[functions]
+# All functions are located in the 'functions' directory by default
+
+# Environment-specific function configurations
+[env.production.functions]
+# Production-specific function settings
+
+[env.staging.functions]
+# Staging-specific function settings
+
+# KV namespace bindings for Pages Functions
+[[kv_namespaces]]
+binding = "CACHE"
+id = "your-cache-kv-namespace-id"
+preview_id = "your-cache-kv-preview-id"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "your-sessions-kv-namespace-id"
+preview_id = "your-sessions-kv-preview-id"
+
+[[kv_namespaces]]
+binding = "BLOBS"
+id = "your-blobs-kv-namespace-id"
+preview_id = "your-blobs-kv-preview-id"
+
+# D1 database bindings for Pages Functions
+[[d1_databases]]
+binding = "DB"
+database_name = "my-pages-db"
+database_id = "your-d1-database-id"
+
+[env.staging.d1_databases]
+binding = "DB"
+database_name = "my-pages-db-staging"
+database_id = "your-d1-database-id-staging"
+
+[env.production.d1_databases]
+binding = "DB"
+database_name = "my-pages-db"
+database_id = "your-d1-database-id"
+
+# R2 storage bindings for Pages Functions
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "my-pages-assets"
+
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "my-pages-uploads"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "my-pages-media"
+
+# Durable Objects for Pages Functions
+[[durable_objects.bindings]]
+name = "WEBSOCKET_MANAGER"
+class_name = "WebSocketManager"
+
+[[durable_objects.bindings]]
+name = "COLLABORATION"
+class_name = "CollaborationEngine"
+
+# Analytics Engine for Pages Functions
+[[analytics_engine_datasets]]
+binding = "PAGE_VIEWS"
+
+[[analytics_engine_datasets]]
+binding = "USER_ANALYTICS"
+
+# Queue producers for Pages Functions
+[[queues.producers]]
+binding = "BACKGROUND_TASKS"
+queue = "pages-background-tasks"
+
+[[queues.producers]]
+binding = "WEBHOOK_QUEUE"
+queue = "webhook-processors"
+
+# Queue consumers for Pages Functions
+[[queues.consumers]]
+queue = "pages-background-tasks"
+max_batch_size = 50
+max_batch_timeout_seconds = 30
+
+[[queues.consumers]]
+queue = "webhook-processors"
+max_batch_size = 10
+max_batch_timeout_seconds = 60
+
+# Environment variables
+[vars]
+ENVIRONMENT = "development"
+SITE_URL = "https://my-pages-project.pages.dev"
+API_URL = "https://api.example.com"
+MAX_UPLOAD_SIZE = "10485760"  # 10MB
+CACHE_TTL = "3600"  # 1 hour
+ENABLE_ANALYTICS = "true"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+SITE_URL = "https://my-pages-project-staging.pages.dev"
+API_URL = "https://api-staging.example.com"
+CACHE_TTL = "1800"  # 30 minutes
+
+[env.production.vars]
+ENVIRONMENT = "production"
+SITE_URL = "https://example.com"
+API_URL = "https://api.example.com"
+CACHE_TTL = "86400"  # 24 hours
+ENABLE_ANALYTICS = "true"
+
+# Custom domains (configure these in the Cloudflare Dashboard)
+# Production domains would be configured here:
+# domains = ["example.com", "www.example.com"]
+
+[env.staging.domains]
+# domains = ["staging.example.com"]
+
+[env.development.domains]
+# domains = ["dev.example.com"]
+
+# Placement for optimal performance
+[placement]
+mode = "smart"
+
+# Compatibility flags
+compatibility_flags = ["nodejs_compat", "webstandard_api"]
+
+# Build optimization settings
+[build_optimization]
+# Enable build optimizations
+minify = true
+treeshake = true
+dead_code_elimination = true
+
+# Environment-specific optimizations
+[env.production.build_optimization]
+minify = true
+treeshake = true
+dead_code_elimination = true
+
+[env.staging.build_optimization]
+minify = true
+treeshake = true
+dead_code_elimination = false  # Keep code for debugging
+
+[env.development.build_optimization]
+minify = false
+treeshake = false
+dead_code_elimination = false
+
+# Static asset optimization
+[assets]
+# Configure static asset handling
+cache_control = "public, max-age=31536000, immutable"
+compression = true
+
+# Environment-specific asset configurations
+[env.production.assets]
+cache_control = "public, max-age=31536000, immutable"
+compression = true
+
+[env.staging.assets]
+cache_control = "public, max-age=86400"
+compression = true
+
+[env.development.assets]
+cache_control = "no-cache"
+compression = false
+
+# Security headers (can be set in _headers file as well)
+[security]
+# Enable security features
+helmet = true
+cors = true
+
+# Environment-specific security
+[env.production.security]
+helmet = true
+cors = {
+    origin = ["https://example.com", "https://www.example.com"],
+    credentials = true
+}
+
+[env.staging.security]
+helmet = true
+cors = {
+    origin = ["https://staging.example.com"],
+    credentials = true
+}
+
+[env.development.security]
+helmet = false
+cors = {
+    origin = ["*"],
+    credentials = true
+}
+
+# Observability and monitoring
+[observability]
+enabled = true
+log_level = "info"
+
+[env.production.observability]
+enabled = true
+log_level = "warn"
+
+[env.staging.observability]
+enabled = true
+log_level = "info"
+
+[env.development.observability]
+enabled = true
+log_level = "debug"
+
+# Performance monitoring
+[performance]
+# Enable performance monitoring
+core_web_vitals = true
+navigation_timing = true
+
+[env.production.performance]
+core_web_vitals = true
+navigation_timing = true
+resource_timing = true
+
+[env.staging.performance]
+core_web_vitals = true
+navigation_timing = true
+
+[env.development.performance]
+core_web_vitals = false
+navigation_timing = false
+
+# SEO and meta tags configuration
+[seo]
+# SEO configurations
+sitemap = true
+robots = true
+meta_description = "My Pages Project - A modern web application"
+meta_keywords = ["web", "application", "modern", "responsive"]
+
+[env.production.seo]
+sitemap = true
+robots = "index,follow"
+meta_description = "My Pages Project - A modern web application"
+meta_keywords = ["web", "application", "modern", "responsive"]
+
+[env.staging.seo]
+sitemap = false
+robots = "noindex,nofollow"
+meta_description = "Staging - My Pages Project"
+meta_keywords = ["staging", "development"]
+
+[env.development.seo]
+sitemap = false
+robots = "noindex,nofollow"
+meta_description = "Development - My Pages Project"
+
+# Social media integration
+[social]
+# Social media configurations
+open_graph = true
+twitter_cards = true
+
+# Custom 404 page (create functions/_error.js for custom handling)
+[error_pages]
+404 = "/404"
+500 = "/500"
+
+# Feature flags
+[features]
+# Feature flag configurations
+new_ui = false
+beta_features = false
+analytics_enabled = true
+
+[env.production.features]
+new_ui = true
+beta_features = false
+analytics_enabled = true
+
+[env.staging.features]
+new_ui = true
+beta_features = true
+analytics_enabled = true
+
+[env.development.features]
+new_ui = true
+beta_features = true
+analytics_enabled = false
+
+# Variable bindings for secrets (set via CLI)
+# Note: Store sensitive values in wrangler secrets, not here
+# Use: wrangler secret put VARIABLE_NAME
+
+# Example secret variables (to be set via CLI):
+# - DATABASE_URL
+# - JWT_SECRET
+# - API_KEYS
+# - SOCIAL_API_KEYS
+# - ENCRYPTION_KEY
+# - WEBHOOK_SECRET
+# - RECAPTCHA_SECRET

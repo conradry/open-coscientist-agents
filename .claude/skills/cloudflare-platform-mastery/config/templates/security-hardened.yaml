@@ -1,0 +1,307 @@
+# Security-Hardened Configuration Template
+# Based on HIPAA-compliant medical research platform security patterns
+
+domain: "yourdomain.com"
+environment: "production"
+compliance_standards: ["HIPAA", "GDPR", "SOC2"]
+
+# SSL/TLS Configuration - Enterprise Security
+ssl:
+  mode: "full-strict"  # End-to-end encryption with certificate validation
+  min_version: "TLSv1.3"  # Latest security standards
+  ciphers:
+    - "TLS_AES_256_GCM_SHA384"
+    - "TLS_AES_128_GCM_SHA256"
+    - "TLS_CHACHA20_POLY1305_SHA256"
+
+  # HTTP Strict Transport Security
+  hsts:
+    enabled: true
+    max_age: 31536000  # 1 year
+    include_subdomains: true
+    preload: true
+    nosniff: true
+
+  # Certificate Pinning (for high-security applications)
+  certificate_transparency: true
+  ocsp_stapling: true
+
+# WAF Configuration - Advanced Protection
+waf:
+  # OWASP Core Ruleset
+  owasp_modsecurity_core_rule_set: true
+  rule_version: "3.3.2"
+
+  # Custom Security Rules (HIPAA compliance)
+  custom_rules:
+    - name: "HIPAA-PHI-Protection"
+      description: "Block potential PHI data exposure"
+      expression: '(http.request.uri.path contains "/patient/" or http.request.uri.path contains "/phi/") and (http.request.uri.query contains "ssn" or http.request.uri.query contains "medical")'
+      action: "block"
+
+    - name: "SQL-Injection-Prevention"
+      description: "Advanced SQL injection patterns"
+      expression: 'http.request.uri.path matches "^(?!.*\\.(js|css|jpg|png|gif|ico|svg|woff2?)$).*" and (http.request.uri.query contains "union" or http.request.uri.query contains "select" or http.request.uri.query contains "drop" or http.request.uri.query contains "insert" or http.request.uri.query contains "update" or http.request.uri.query contains "delete")'
+      action: "block"
+
+    - name: "XSS-Protection"
+      description: "Cross-site scripting prevention"
+      expression: 'http.request.body contains "<script" or http.request.body contains "javascript:" or http.request.body contains "onload=" or http.request.body contains "onerror="'
+      action: "block"
+
+    - name: "File-Upload-Protection"
+      description: "Block malicious file uploads"
+      expression: 'http.request.uri.path contains "/upload" and (http.file.filename matches "\\.(exe|php|asp|jsp|bat|cmd|sh|ps1)$")'
+      action: "block"
+
+  # Rate Limiting - Enterprise Grade
+  rate_limiting:
+    # Global rate limits
+    global:
+      requests_per_minute: 1000
+      burst_size: 100
+
+    # Endpoint-specific limits
+    api_endpoints:
+      requests_per_minute: 100
+      burst_size: 20
+      mitigation_duration: 300
+
+    login_endpoints:
+      requests_per_minute: 10
+      burst_size: 3
+      mitigation_duration: 900
+
+    upload_endpoints:
+      requests_per_minute: 5
+      burst_size: 2
+      mitigation_duration: 1800
+
+# Bot Management - Advanced Detection
+bot_management:
+  mode: "aggressive"
+  super_bot_fight_mode: true
+
+  # Bot classification rules
+  bot_rules:
+    - name: "Known-Bad-Bots"
+      description: "Block known malicious bots"
+      user_agents:
+        - "Scrapy"
+        - "Python-urllib"
+        - "curl"
+        - "Wget"
+        - "sqlmap"
+      action: "block"
+
+    - name: "API-Abuse-Protection"
+      description: "Protect API endpoints from bot abuse"
+      path_pattern: "/api/*"
+      rate_limit: 10/minute
+      action: "challenge"
+
+    - name: "Content-Scraping-Protection"
+      description: "Prevent automated content scraping"
+      path_pattern: "/*"
+      behavior_analysis: true
+      action: "managed_challenge"
+
+# DDoS Protection - Multi-Layer Defense
+ddos_protection:
+  # Layer 3/4 Protection (Network)
+  network_level:
+    protection_mode: "aggressive"
+    mitigation_threshold: 100000  # requests per second
+
+  # Layer 7 Protection (Application)
+  application_level:
+    http_ddos_protection: true
+    rate_limiting_behavior: "adaptive"
+    request_validation: true
+
+  # Advanced DDoS Features
+  advanced_features:
+    ip_reputation_scoring: true
+    behavioral_analysis: true
+    machine_learning_detection: true
+    automatic_mitigation: true
+
+# Access Control - Zero Trust Architecture
+access_control:
+  # Zero Trust Access Policies
+  zero_trust:
+    enabled: true
+    default_action: "deny"
+
+  # Role-Based Access Control
+  rbac:
+    roles:
+      - name: "admin"
+        permissions: ["read", "write", "delete", "manage"]
+        ip_whitelist: ["192.168.1.0/24", "10.0.0.0/8"]
+
+      - name: "user"
+        permissions: ["read", "write"]
+        mfa_required: true
+
+      - name: "guest"
+        permissions: ["read"]
+        rate_limit: 10/minute
+
+  # Geographic Access Control
+  geo_blocking:
+    default: "allow"
+    blocked_countries: ["CN", "RU", "KP"]  # Adjust based on requirements
+
+  # IP Access Control
+  ip_access_rules:
+    # Allow known legitimate IPs
+    - ip_range: "203.0.113.0/24"
+      action: "allow"
+      comment: "Office network"
+
+    # Block known malicious IPs
+    - ip_range: "192.0.2.0/24"
+      action: "block"
+      comment: "Known threat actor"
+
+# Security Headers - Comprehensive Protection
+security_headers:
+  # Content Security Policy
+  content_security_policy: >
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://trusted.cdn.com;
+    style-src 'self' 'unsafe-inline' https://trusted.cdn.com;
+    img-src 'self' data: https: blob:;
+    font-src 'self' https://trusted.cdn.com;
+    connect-src 'self' https://api.yourdomain.com;
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+
+  # Additional Security Headers
+  x_frame_options: "DENY"
+  x_content_type_options: "nosniff"
+  x_xss_protection: "1; mode=block"
+  referrer_policy: "strict-origin-when-cross-origin"
+  permissions_policy: >
+    camera=(),
+    microphone=(),
+    geolocation=(),
+    payment=(),
+    usb=(),
+    magnetometer=(),
+    gyroscope=()
+
+# Privacy & Compliance
+privacy_protection:
+  # GDPR Compliance
+  gdpr:
+    cookie_consent: true
+    data_anonymization: true
+    right_to_be_forgotten: true
+    audit_logging: true
+
+  # HIPAA Compliance
+  hipaa:
+    phi_protection: true
+    audit_trail: true
+    encryption_at_rest: true
+    encryption_in_transit: true
+    access_logging: true
+
+  # Data Retention
+  data_retention:
+    access_logs: 2555  # 7 years
+    security_events: 2555  # 7 years
+    audit_trails: 2555  # 7 years
+
+# Monitoring & Alerting
+security_monitoring:
+  # Real-time Threat Detection
+  threat_detection:
+    enabled: true
+    anomaly_detection: true
+    machine_learning: true
+
+  # Alert Configuration
+  alerts:
+    critical_events:
+      - "ddos_attack_detected"
+      - "data_breach_attempt"
+      - "unauthorized_access"
+      - "malware_detected"
+
+    notification_channels:
+      - email: ["security-team@yourdomain.com"]
+      - slack: "#security-alerts"
+      - webhook: "https://your-monitoring-system.com/webhook"
+
+  # Security Analytics
+  analytics:
+    real_time_dashboard: true
+    forensic_analysis: true
+    compliance_reporting: true
+    threat_intelligence: true
+
+# Audit & Compliance
+audit_logging:
+  # Comprehensive Logging
+  log_types:
+    - "access_logs"
+    - "security_events"
+    - "admin_actions"
+    - "api_calls"
+    - "authentication_events"
+
+  # Log Format
+  log_format: "json"
+  include_sensitive_data: false
+  encryption_at_rest: true
+
+  # Log Retention
+  retention:
+    access_logs: 2555  # 7 years for compliance
+    security_events: 2555
+    audit_trails: 2555
+
+# Incident Response
+incident_response:
+  # Automated Response
+  automated_responses:
+    - automatic_ip_blocking: true
+    - rate_limit_adjustment: true
+    - waf_rule_updates: true
+
+  # Manual Response Procedures
+  response_procedures:
+    - security_incident_checklist: true
+    - escalation_procedures: true
+    - communication_templates: true
+
+  # Recovery Procedures
+  recovery:
+    - backup_restoration: true
+    - service_recovery: true
+    - post_incident_analysis: true
+
+# Expected Security Outcomes
+security_metrics:
+  threat_mitigation: "99.9%"
+  false_positive_rate: "< 1%"
+  compliance_score: "100%"
+  incident_response_time: "< 15 minutes"
+
+# Regular Security Reviews
+maintenance:
+  security_reviews:
+    frequency: "quarterly"
+    scope: "comprehensive"
+
+  penetration_testing:
+    frequency: "annually"
+    scope: "full_application_stack"
+
+  vulnerability_scanning:
+    frequency: "monthly"
+    scope: "all_public_endpoints"
