@@ -28,19 +28,37 @@ setup(
     ],
     python_requires=">=3.9",
     install_requires=[
-        "langchain>=0.3.25",
-        "langchain-community>=0.3.24",
-        "langgraph>=0.4.7",
-        "typing-extensions>=4.0.0",
-        "ipython>=8.0.0",  # For notebook support
-        "gpt-researcher @ git+https://github.com/assafelovic/gpt-researcher@v3.3.0",
-        "langchain-core>=0.3.65",
-        "langchain-community>=0.3.2",
-        "langchain-openai>=0.3.18",
-        "langchain-anthropic>=0.3.15",
-        "langchain-google-genai>=2.1.5",
+        # Core dependencies
+        "jinja2>=3.1.2",
         "networkx>=3.5",
         "scikit-learn>=1.7.0",
+        "typing-extensions>=4.5.0",
+        "python-dotenv>=1.0.0",
+
+        # LLM and LangChain dependencies (compatible versions)
+        "langchain>=1.0.0,<2.0.0",
+        "langchain-core>=1.0.0,<2.0.0",
+        "langchain-community>=0.4.0",
+        "langchain-anthropic>=1.0.0",
+        "langchain-openai>=1.0.0",
+        "langchain-google-genai>=3.0.0",
+        "langchain-text-splitters>=1.0.0",
+        "langgraph>=1.0.0",
+
+        # Research dependencies
+        # gpt-researcher from PyPI (same as https://github.com/assafelovic/gpt-researcher)
+        "gpt-researcher>=0.14.5",
+
+        # Additional core dependencies
+        "numpy>=2.0.0,<2.3.0",
+        "pydantic>=2.11.0",
+        "pydantic-settings>=2.9.0",
+        "anthropic>=0.69.0",
+        "openai>=1.82.0",
+        "google-ai-generativelanguage>=0.9.0",
+
+        # For notebook support
+        "ipython>=8.0.0",
     ],
     extras_require={
         "dev": [

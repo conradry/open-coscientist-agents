@@ -21,7 +21,9 @@ from coscientist.reflection_agent import ReflectionState
 from coscientist.supervisor_agent import SupervisorDecisionState
 
 # Global configuration for output directory
-_OUTPUT_DIR = os.environ.get("COSCIENTIST_DIR", os.path.expanduser("~/.coscientist"))
+# Store in repo directory instead of user home directory
+_REPO_DIR = Path(__file__).parent.parent
+_OUTPUT_DIR = os.environ.get("COSCIENTIST_DIR", str(_REPO_DIR / ".coscientist"))
 
 
 def _maybe_save(n: int = 1):
