@@ -351,6 +351,24 @@ class EloTournament:
 
         return records
 
+    def get_ranked_hypotheses(self) -> list[str]:
+        """
+        Returns a list containing the ID of every ranked hypothesis.
+
+        Returns
+        -------
+        list[str]
+            A list where each entry is the hypothesis ID of a ranked hypothesis.
+        """
+        win_loss_records = self.get_win_loss_records()
+
+        ranked_hypotheses = []
+        for h_id in self.hypotheses.keys():
+            if {"wins": 0, "losses": 0} != win_loss_records[h_id]:
+                ranked_hypotheses.append(h_id)
+
+        return ranked_hypotheses
+
     def summarize_tournament_trajectory(self) -> str:
         """
         Summarizes the trajectory of the tournament for the supervisor agent.
