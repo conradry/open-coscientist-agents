@@ -110,7 +110,7 @@ app/                       # Streamlit web interface
 
 ### Configuration
 
-The system automatically loads credentials from the `.env` file. Required environment variables:
+The system automatically loads credentials from the single `.env` file in the project root. Required environment variables:
 
 ```bash
 # LLM Provider API Keys
@@ -123,6 +123,8 @@ TAVILY_API_KEY=your-tavily-api-key
 ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
 OPENAI_API_BASE=https://api.z.ai/api/paas/v4
 ```
+
+**Note**: There is only one `.env` file located in the project root directory. The framework automatically loads this file when imported.
 
 The system supports multiple LLM providers:
 - **Smart Models**: o3, Gemini 2.5 Pro, Claude Sonnet 4
