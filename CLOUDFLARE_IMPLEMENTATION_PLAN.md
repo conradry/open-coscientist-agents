@@ -21,6 +21,7 @@ Transform the co-scientist multi-agent system into a fully serverless architectu
 - **React SPA** with Vite hosting on Cloudflare Pages
 - **Real-time updates** via WebSockets using Durable Objects
 - **Streamlit-to-React component mapping**
+- **Built-in domain**: `your-project.pages.dev` (no custom domain purchase required)
 
 ### Cost Analysis
 
@@ -65,27 +66,40 @@ Transform the co-scientist multi-agent system into a fully serverless architectu
 - Implement Durable Objects for state management
 - Set up KV storage for configuration
 
-#### Week 3: Agent Implementation (Literature & Generation)
+#### Week 3: Agent Implementation (All 8 Agents)
 - Port Literature Review Agent to Workers AI + Tavily search
+- Port Generation Agent with all 10 reasoning approaches to Workers AI
+- Port Reflection Agent with multi-stage verification system
+- Port Ranking Agent with ELO tournament to Workers + Durable Objects
+- Port Evolution Agent with feedback-based refinement
+- Port Meta-Review Agent for synthesis across results
+- Port Final Report Agent for comprehensive reporting
+- Port Supervisor Agent for workflow orchestration
+- Port Configuration Agent for system setup
 - Replace GPT Researcher with Tavily API + Workers AI processing
-- Implement Generation Agents with 10 reasoning approaches
-- Migrate embeddings to Workers AI models + Vectorize
+- Migrate embeddings to Workers AI BGE models + Vectorize
+- Implement multi-turn debate system for hypothesis comparison
 - Implement result caching in KV storage
 - Add error handling and retry logic
 
-#### Week 4: Agent Implementation (Reflection & Evolution)
-- Port Reflection Agent with multi-stage verification
-- Implement Evolution Agent for hypothesis refinement
-- Create agent communication protocols
+#### Week 4: Multi-turn System & Tournament Implementation
+- Implement multi-turn debate system for hypothesis comparison
+- Port complete ELO tournament system with ranking logic to Workers + Durable Objects
+- Create hypothesis pairing algorithms based on Vectorize similarity
+- Implement agent communication protocols via Workers
 - Implement asynchronous task processing with Queues
-- Add experiment monitoring and logging
+- Create tournament bracket management and scheduling
+- Add comprehensive experiment monitoring and logging
 
-#### Week 5: Tournament System
-- Implement ELO rating system in Workers
-- Create hypothesis comparison logic
-- Implement tournament scheduling with Cron Triggers
-- Add real-time score updates via WebSockets
-- Create tournament visualization components
+#### Week 5: Vector Search & State Management Migration
+- Complete Vectorize integration for hypothesis similarity (BGE models)
+- Migrate NetworkX proximity graph to Vectorize vector-based search
+- Implement hypothesis deduplication using vector similarity (384/768/1024-dim)
+- Migrate global state management from pickle to Durable Objects
+- Implement auto-save decorators for state persistence in Durable Objects
+- Set up R2 storage for experiment data and artifacts
+- Implement goal-based organization in R2 storage
+- Create data backup and recovery system
 
 #### Week 6: Storage & Data Management
 - Implement R2 client for file operations
@@ -216,10 +230,16 @@ This provides better model quality while maintaining cost efficiency for the fro
 
 #### Workers AI Embeddings Integration (Replacing OpenAI Embeddings)
 ```typescript
-// Worker for embedding generation
+// Worker for embedding generation using BGE models
 export interface EmbeddingRequest {
   text: string;
-  model?: "@cf/baai/bge-large-en-v1.5" | "@cf/baai/bge-small-en-v1.5";
+  model?: "@cf/baai/bge-large-en-v1.5" | "@cf/baai/bge-base-en-v1.5" | "@cf/baai/bge-small-en-v1.5";
+}
+
+export interface EmbeddingResponse {
+  embedding: number[];
+  dimensions: number;
+  model_used: string;
 }
 
 export default {
@@ -228,17 +248,31 @@ export default {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    const { text, model = "@cf/baai/bge-large-en-v1.5" } = await request.json() as EmbeddingRequest;
+    const { text, model = "@cf/baai/bge-base-en-v1.5" } = await request.json() as EmbeddingRequest;
 
     try {
       const response = await env.AI.run(model, { text });
-      return Response.json({ embedding: response.data[0] });
+
+      // Handle different BGE model dimensions
+      const dimensions = model.includes('large') ? 1024 :
+                        model.includes('base') ? 768 : 384;
+
+      return Response.json({
+        embedding: response.data[0],
+        dimensions,
+        model_used: model
+      } as EmbeddingResponse);
     } catch (error) {
       console.error('Embedding generation failed:', error);
       return Response.json({ error: 'Failed to generate embedding' }, { status: 500 });
     }
   }
 };
+
+// BGE Model Options:
+// @cf/baai/bge-large-en-v1.5  - 1024 dimensions, best quality
+// @cf/baai/bge-base-en-v1.5   - 768 dimensions, balanced quality/speed
+// @cf/baai/bge-small-en-v1.5  - 384 dimensions, fastest
 ```
 
 #### Vectorize Integration (Replacing NetworkX Proximity Graph)
@@ -260,14 +294,18 @@ export class HypothesisSimilarityEngine {
         metadata: {
           hypothesis: metadata.hypothesis,
           predictions: JSON.stringify(metadata.predictions),
-          assumptions: JSON.stringify(metadata.assumptions)
+          assumptions: JSON.stringify(metadata.assumptions),
+          created_at: Date.now()
         }
       }
     ]);
   }
 
   async findSimilarHypotheses(queryEmbedding: number[], threshold: number = 0.7, limit: number = 10) {
-    const matches = await this.index.query(queryEmbedding, { topK: limit });
+    const matches = await this.index.query(queryEmbedding, {
+      topK: limit,
+      returnMetadata: true
+    });
 
     return matches.matches
       .filter(match => match.score >= threshold)
@@ -281,6 +319,44 @@ export class HypothesisSimilarityEngine {
   async checkForDuplicates(embedding: number[], threshold: number = 0.9) {
     const matches = await this.index.query(embedding, { topK: 5 });
     return matches.matches.filter(match => match.score >= threshold);
+  }
+
+  async buildProximityGraph(hypotheses: any[], threshold: number = 0.8) {
+    // Replicate NetworkX proximity graph functionality
+    const edges: Array<{from: string, to: string, weight: number}> = [];
+
+    for (let i = 0; i < hypotheses.length; i++) {
+      for (let j = i + 1; j < hypotheses.length; j++) {
+        const similar = await this.findSimilarHypotheses(
+          hypotheses[i].embedding,
+          threshold,
+          1
+        );
+
+        if (similar.length > 0 && similar[0].id === hypotheses[j].uid) {
+          edges.push({
+            from: hypotheses[i].uid,
+            to: hypotheses[j].uid,
+            weight: similar[0].score
+          });
+        }
+      }
+    }
+
+    return edges;
+  }
+
+  async getHypothesisNeighbors(hypothesisId: string, maxNeighbors: number = 10) {
+    // Get all similar hypotheses for one hypothesis
+    const hypothesis = await this.index.fetchById([hypothesisId]);
+    if (!hypothesis.count) return [];
+
+    const matches = await this.index.query(hypothesis.vectors[0].values, {
+      topK: maxNeighbors,
+      filter: `id != ${hypothesisId}`
+    });
+
+    return matches.matches;
   }
 }
 ```

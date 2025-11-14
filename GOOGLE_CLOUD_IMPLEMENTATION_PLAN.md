@@ -24,6 +24,10 @@ Leverage Google's enterprise-grade cloud ecosystem to deploy the co-scientist sy
 - **React SPA** replacing Streamlit for better integration
 - **Material-UI** components for consistent design
 - **Real-time updates** via Firestore listeners
+- **Firebase Hosting** on built-in domains:
+  - `your-project.web.app` (primary)
+  - `your-project.firebaseappapp.com` (secondary)
+  - No custom domain purchase required
 
 ### Cost Analysis
 
@@ -71,29 +75,40 @@ Leverage Google's enterprise-grade cloud ecosystem to deploy the co-scientist sy
 - Set up Vertex AI client for model inference
 - Create development and testing environment
 
-#### Week 3: Core Agent Migration
-- Port Literature Review Agent to ADK + Vertex AI Search
-- Replace GPT Researcher with Vertex AI Search + web grounding
-- Implement Generation Agents with ADK orchestration
+#### Week 3: Core Agent Migration (All 8 Agents)
+- Port Literature Review Agent to ADK + Vertex AI Vector Search + external search
+- Port Generation Agent with all 10 reasoning approaches to ADK
+- Port Reflection Agent with multi-stage verification system
+- Port Ranking Agent with ELO tournament system to Cloud Run + Firestore
+- Port Evolution Agent with feedback-based refinement
+- Port Meta-Review Agent for synthesis across results
+- Port Final Report Agent for comprehensive reporting
+- Port Supervisor Agent for workflow orchestration
+- Port Configuration Agent for system setup
+- Implement multi-turn debate system for hypothesis comparison
+- Migrate NetworkX proximity graph to Vertex AI Vector Search
 - Create agent state management in Firestore
-- Migrate embedding system to Vertex AI Vector Search
-- Implement asynchronous task processing
+- Implement asynchronous task processing with Pub/Sub
 - Add comprehensive error handling and logging
 
-#### Week 4: Advanced Agent Implementation
-- Port Reflection Agent with multi-stage verification
-- Implement Evolution Agent using ADK features
-- Create agent collaboration workflows
-- Implement experiment monitoring and tracking
-- Add performance metrics and analytics
+#### Week 4: Multi-turn System & Tournament Implementation
+- Implement multi-turn debate system for hypothesis comparison
+- Port complete ELO tournament system with ranking logic
+- Create hypothesis pairing algorithms based on similarity and rankings
+- Implement agent collaboration workflows
+- Create tournament bracket management and scheduling
+- Add comprehensive experiment monitoring and tracking
+- Implement performance metrics and analytics for all agents
 
-#### Week 5: Tournament System & Vector Search
-- Implement ELO tournament system with ADK
-- Create hypothesis comparison and ranking
-- Migrate proximity graph to Vertex AI Vector Search
-- Implement hypothesis deduplication using vector similarity
-- Set up Cloud Storage for experiment data
-- Implement data backup and recovery
+#### Week 5: Vector Search & State Management Migration
+- Complete Vertex AI Vector Search integration for hypothesis similarity
+- Migrate NetworkX proximity graph to vector-based similarity search
+- Implement hypothesis deduplication using vector similarity (768-dim embeddings)
+- Migrate global state management from pickle to Firestore
+- Implement auto-save decorators for state persistence
+- Set up Cloud Storage for experiment data and artifacts
+- Implement goal-based directory organization in Cloud Storage
+- Create data backup and recovery system
 
 #### Week 6: Event-Driven Architecture
 - Implement Pub/Sub for agent communication
@@ -355,6 +370,7 @@ class LiteratureSearchClient:
 
 #### Vertex AI Vector Search Integration (Replacing OpenAI Embeddings)
 ```python
+from vertexai.language_models import TextEmbeddingModel
 from vertexai.vision_model_garden_service import VisionModelGardenServiceClient
 from google.cloud import aiplatform
 import numpy as np
@@ -364,23 +380,24 @@ class VectorSearchManager:
         aiplatform.init(project=project_id, location=location)
         self.client = VisionModelGardenServiceClient()
         self.index_endpoint_id = index_endpoint_id
+        # Use textembedding-gecko (768 dimensions)
+        self.embedding_model = TextEmbeddingModel.from_pretrained("textembedding-gecko@003")
 
     def create_embedding(self, text: str) -> np.ndarray:
-        """Create embeddings using Vertex AI text-embedding models"""
-        from vertexai.language_models import TextEmbeddingModel
-        model = TextEmbeddingModel.from_pretrained("textembedding-gecko@003")
-        embeddings = model.get_embeddings([text])
-        return np.array(embeddings[0].values)
+        """Create embeddings using Vertex AI textembedding-gecko (768 dimensions)"""
+        embeddings = self.embedding_model.get_embeddings([text])
+        return np.array(embeddings[0].values)  # 768-dimensional vector
 
-    def upsert_hypothesis(self, hypothesis_id: str, text: str):
+    def upsert_hypothesis(self, hypothesis_id: str, text: str, metadata: dict):
         """Add/update hypothesis in vector index"""
         embedding = self.create_embedding(text)
 
-        # Update vector index
+        # Update vector index with restrictions
         datapoint = {
             "datapoint_id": hypothesis_id,
             "feature_vector": embedding.tolist(),
-            "restricts": [{"namespace": "hypothesis", "allow_list": [hypothesis_id]}]
+            "restricts": [{"namespace": "hypothesis", "allow_list": [hypothesis_id]}],
+            "crowding_tag": hash(text) % 1000  # Prevent overcrowding
         }
 
         # Index the datapoint
@@ -403,7 +420,21 @@ class VectorSearchManager:
             }]
         )
 
-        return response.nearest_neighbors
+        # Filter by similarity threshold
+        neighbors = response.nearest_neighbors[0] if response.nearest_neighbors else []
+        return [n for n in neighbors if n.distance <= (1 - similarity_threshold)]
+
+    def build_proximity_graph(self, hypotheses: list, similarity_threshold: float = 0.8):
+        """Build proximity graph similar to NetworkX implementation"""
+        edges = []
+        for i, hyp1 in enumerate(hypotheses):
+            for j, hyp2 in enumerate(hypotheses[i+1:], i+1):
+                similar_hypotheses = self.find_similar_hypotheses(hyp1.hypothesis, similarity_threshold, 1)
+                for similar in similar_hypotheses:
+                    if similar.datapoint_id == hyp2.uid:
+                        edges.append((hyp1.uid, hyp2.uid, 1 - similar.distance))
+                        break
+        return edges
 ```
 
 #### GPT Researcher Migration Strategy
