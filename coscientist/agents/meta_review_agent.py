@@ -24,9 +24,9 @@ from typing import TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, StateGraph
 
-from coscientist.common import load_prompt
-from coscientist.custom_types import ReviewedHypothesis
-from coscientist.ranking_agent import EloTournament
+from coscientist.utils.common import load_prompt
+from coscientist.models.custom_types import ReviewedHypothesis
+from coscientist.agents.ranking_agent import EloTournament
 
 
 class MetaReviewTournamentState(TypedDict):
@@ -162,7 +162,7 @@ def _top_hypotheses_review_node(
     for hyp_id, rating in top_hypotheses_data:
         hypothesis = tournament.hypotheses[hyp_id]
         top_hypotheses_entries.append(
-            _format_hypothesis_with_rating(hyp_id, hypothesis, rating)
+            _format_hypothesis_with_rating(hypothesis, rating)
         )
     top_hypotheses_text = "\n".join(top_hypotheses_entries)
 
@@ -170,7 +170,7 @@ def _top_hypotheses_review_node(
     reviews_entries = []
     for hyp_id, rating in top_hypotheses_data:
         hypothesis = tournament.hypotheses[hyp_id]
-        reviews_entries.append(f"Review for Hypothesis {hyp_id}\n{hypothesis.review}")
+        reviews_entries.append(f"Review for Hypothesis {hyp_id}\n{hypothesis.verification_result}")
     reviews_text = "\n\n".join(reviews_entries)
 
     prompt = load_prompt(

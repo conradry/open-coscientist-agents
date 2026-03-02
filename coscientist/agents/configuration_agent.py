@@ -19,7 +19,7 @@ from langgraph.graph import START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import Annotated
 
-from coscientist.common import load_prompt
+from coscientist.utils.common import load_prompt
 
 
 class ConfigurationState(TypedDict):

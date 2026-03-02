@@ -3,7 +3,7 @@ from typing import Any, Callable, Optional, Type, TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, StateGraph
 
-from coscientist.common import load_prompt
+from coscientist.utils.common import load_prompt
 
 
 class MultiTurnState(TypedDict):

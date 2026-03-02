@@ -6,16 +6,15 @@ Proximity agent
 
 import networkx as nx
 import numpy as np
-from langchain_openai import OpenAIEmbeddings
 from sklearn.metrics.pairwise import cosine_similarity
 
-from coscientist.custom_types import ParsedHypothesis
+from coscientist.config.embedding_config import DEFAULT_EMBEDDING
+from coscientist.models.custom_types import ParsedHypothesis
 
 
-def create_embedding(text: str, dimensions: int = 256) -> np.ndarray:
-    """Create a vector embedding for a text."""
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=dimensions)
-    return np.array(embeddings.embed_query(text))
+def create_embedding(text: str) -> np.ndarray:
+    """Create a vector embedding for a text using the configured embedding model."""
+    return np.array(DEFAULT_EMBEDDING.embed_query(text))
 
 
 class ProximityGraph:

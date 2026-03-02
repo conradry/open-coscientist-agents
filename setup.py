@@ -35,10 +35,8 @@ setup(
         "ipython>=8.0.0",  # For notebook support
         "gpt-researcher @ git+https://github.com/assafelovic/gpt-researcher@v3.3.0",
         "langchain-core>=0.3.65",
-        "langchain-community>=0.3.2",
-        "langchain-openai>=0.3.18",
-        "langchain-anthropic>=0.3.15",
-        "langchain-google-genai>=2.1.5",
+        "langchain-litellm>=0.3.0",
+        "litellm>=1.0.0",
         "networkx>=3.5",
         "scikit-learn>=1.7.0",
     ],

@@ -23,8 +23,8 @@ from typing import TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, StateGraph
 
-from coscientist.common import load_prompt, parse_hypothesis_markdown
-from coscientist.custom_types import ParsedHypothesis, ReviewedHypothesis
+from coscientist.utils.common import load_prompt, parse_hypothesis_markdown
+from coscientist.models.custom_types import ParsedHypothesis, ReviewedHypothesis
 
 
 class EvolveFromFeedbackState(TypedDict):

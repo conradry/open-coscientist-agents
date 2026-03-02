@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-from coscientist.custom_types import ReviewedHypothesis
+from coscientist.models.custom_types import ReviewedHypothesis
 
 
 def format_hypothesis_summary(hypothesis: ReviewedHypothesis, elo_rating: float) -> str:

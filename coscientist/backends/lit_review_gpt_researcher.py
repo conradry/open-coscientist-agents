@@ -1,10 +1,13 @@
 """
-System for agentic literature review that's used by other agents.
+Literature review agent backed by GPTResearcher (web search).
 
-Implementation uses LangGraph to:
-1. Decompose research goals into modular topics
-2. Dispatch each topic to GPTResearcher workers in parallel
-3. Synthesize topic reports into executive summary
+Uses LangGraph to:
+1. Decompose research goals into modular subtopics
+2. Dispatch each subtopic to GPTResearcher workers in parallel
+3. Synthesize subtopic reports into an executive summary
+
+Requires gpt-researcher and a RETRIEVER API key (e.g. Tavily).
+Config is read from ``coscientist/config/gpt_researcher_config.json``.
 """
 
 import asyncio
@@ -12,12 +15,12 @@ import os
 import re
 from typing import TypedDict
 
-from gpt_researcher import GPTResearcher
-from gpt_researcher.utils.enum import Tone
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, StateGraph
 
-from coscientist.common import load_prompt
+from coscientist.utils.common import load_prompt
+
+_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "gpt_researcher_config.json")
 
 
 class LiteratureReviewState(TypedDict):
@@ -31,20 +34,7 @@ class LiteratureReviewState(TypedDict):
 
 
 def parse_topic_decomposition(markdown_text: str) -> list[str]:
-    """
-    Parse the topic decomposition markdown into strings.
-
-    Parameters
-    ----------
-    markdown_text : str
-        The markdown output from topic_decomposition prompt
-
-    Returns
-    -------
-    list[str]
-        Parsed subtopics strings
-    """
-    # Split by subtopic headers (### Subtopic N)
+    """Parse the topic decomposition markdown into subtopic strings."""
     sections = re.split(r"### Subtopic \d+", markdown_text)
     return [section.strip() for section in sections[1:]]
 
@@ -53,9 +43,7 @@ def _topic_decomposition_node(
     state: LiteratureReviewState,
     llm: BaseChatModel,
 ) -> LiteratureReviewState:
-    """
-    Node that decomposes the research goal into focused subtopics.
-    """
+    """Decompose the research goal into focused subtopics."""
     prompt = load_prompt(
         "topic_decomposition",
         goal=state["goal"],
@@ -64,8 +52,6 @@ def _topic_decomposition_node(
         meta_review=state.get("meta_review", ""),
     )
     response_content = llm.invoke(prompt).content
-
-    # Parse the topics from the markdown response
     subtopics = parse_topic_decomposition(response_content)
 
     if not subtopics:
@@ -78,22 +64,10 @@ def _topic_decomposition_node(
 
 
 async def _write_subtopic_report(subtopic: str, main_goal: str) -> str:
-    """
-    Conduct research for a single subtopic using GPTResearcher.
+    """Conduct research for a single subtopic using GPTResearcher."""
+    from gpt_researcher import GPTResearcher
+    from gpt_researcher.utils.enum import Tone
 
-    Parameters
-    ----------
-    subtopic : str
-        The subtopic to research
-    main_goal : str
-        The main research goal for context
-
-    Returns
-    -------
-    str
-        The research report
-    """
-    # Create a focused query combining the research focus and key terms
     researcher = GPTResearcher(
         query=subtopic,
         report_type="subtopic_report",
@@ -101,10 +75,8 @@ async def _write_subtopic_report(subtopic: str, main_goal: str) -> str:
         parent_query=main_goal,
         verbose=False,
         tone=Tone.Objective,
-        config_path=os.path.join(os.path.dirname(__file__), "researcher_config.json"),
+        config_path=_CONFIG_PATH,
     )
-
-    # Conduct research and generate report
     _ = await researcher.conduct_research()
     return await researcher.write_report()
 
@@ -112,16 +84,12 @@ async def _write_subtopic_report(subtopic: str, main_goal: str) -> str:
 async def _parallel_research_node(
     state: LiteratureReviewState,
 ) -> LiteratureReviewState:
-    """
-    Node that conducts parallel research for all subtopics using GPTResearcher.
-    """
+    """Conduct parallel research for all subtopics using GPTResearcher."""
     subtopics = state["subtopics"]
     main_goal = state["goal"]
 
-    # Create research tasks for all subtopics
     research_tasks = [_write_subtopic_report(topic, main_goal) for topic in subtopics]
 
-    # Execute all research tasks in parallel
     try:
         subtopic_reports = await asyncio.gather(*research_tasks)
     except Exception as e:
@@ -133,28 +101,26 @@ async def _parallel_research_node(
     return {"subtopic_reports": subtopic_reports}
 
 
-def build_literature_review_agent(llm: BaseChatModel) -> StateGraph:
+def build_lit_review_gpt_researcher(llm: BaseChatModel) -> StateGraph:
     """
-    Builds and configures a LangGraph for literature review.
+    Build a literature review agent backed by GPTResearcher (web search).
 
     Parameters
     ----------
     llm : BaseChatModel
-        The language model to use for topic decomposition and executive summary.
+        LLM for topic decomposition.
 
     Returns
     -------
     StateGraph
-        A compiled LangGraph for the literature review agent.
+        Compiled LangGraph for the literature review agent.
     """
     graph = StateGraph(LiteratureReviewState)
 
-    # Add nodes
     graph.add_node(
         "topic_decomposition",
         lambda state: _topic_decomposition_node(state, llm),
     )
-
     graph.add_node(
         "parallel_research",
         _parallel_research_node,
@@ -164,5 +130,4 @@ def build_literature_review_agent(llm: BaseChatModel) -> StateGraph:
     graph.add_edge("parallel_research", END)
 
     graph.set_entry_point("topic_decomposition")
-
     return graph.compile()

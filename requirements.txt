@@ -2,4 +2,4 @@ jinja2>=3.1.2
 networkx>=3.5
 scikit-learn>=1.7.0
 typing-extensions>=4.5.0
-gpt-researcher @ git+https://github.com/assafelovic/gpt-researcher@v3.3.0
+# gpt-researcher @ git+https://github.com/assafelovic/gpt-researcher@v3.3.0

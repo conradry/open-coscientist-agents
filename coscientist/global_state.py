@@ -3,25 +3,26 @@ import os
 import pickle
 import shutil
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from functools import wraps
 from pathlib import Path
 from typing import Literal, Optional, Union
 
 from langchain_core.language_models import BaseChatModel
 
-from coscientist.custom_types import ParsedHypothesis, ReviewedHypothesis
-from coscientist.evolution_agent import EvolveFromFeedbackState, OutOfTheBoxState
-from coscientist.final_report_agent import FinalReportState
-from coscientist.generation_agent import CollaborativeState, IndependentState
-from coscientist.literature_review_agent import LiteratureReviewState
-from coscientist.meta_review_agent import MetaReviewTournamentState
-from coscientist.proximity_agent import ProximityGraph
-from coscientist.ranking_agent import EloTournament
-from coscientist.reflection_agent import ReflectionState
-from coscientist.supervisor_agent import SupervisorDecisionState
+from coscientist.models.custom_types import ParsedHypothesis, ReviewedHypothesis
+from coscientist.agents.evolution_agent import EvolveFromFeedbackState, OutOfTheBoxState
+from coscientist.agents.final_report_agent import FinalReportState
+from coscientist.agents.generation_agent import CollaborativeState, IndependentState
+from coscientist.backends.lit_review_llm import LiteratureReviewState
+from coscientist.agents.meta_review_agent import MetaReviewTournamentState
+from coscientist.agents.proximity_agent import ProximityGraph
+from coscientist.agents.ranking_agent import EloTournament
+from coscientist.agents.reflection_agent import ReflectionState
+from coscientist.agents.supervisor_agent import SupervisorDecisionState
 
 # Global configuration for output directory
-_OUTPUT_DIR = os.environ.get("COSCIENTIST_DIR", os.path.expanduser("~/.coscientist"))
+_OUTPUT_DIR = os.environ.get("COSCIENTIST_DIR", os.path.expanduser("/home/open-coscientist-agents"))
 
 
 def _maybe_save(n: int = 1):
@@ -210,8 +211,8 @@ class CoscientistState:
             Path to the saved checkpoint file
         """
         # Generate filename with datetime and iteration
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"coscientist_state_{timestamp}_iter_{self._iteration:04d}.pkl"
+        timestamp = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S")
+        filename = f"state_{timestamp}_iter_{self._iteration:04d}.pkl"
         filepath = os.path.join(self._output_dir, filename)
 
         # Save state to pickle file
@@ -282,7 +283,7 @@ class CoscientistState:
         # Find all pickle files matching our naming pattern
         checkpoint_files = []
         for filename in os.listdir(search_directory):
-            if filename.startswith("coscientist_state_") and filename.endswith(".pkl"):
+            if filename.startswith("state_") and filename.endswith(".pkl"):
                 filepath = os.path.join(search_directory, filename)
                 checkpoint_files.append(filepath)
 

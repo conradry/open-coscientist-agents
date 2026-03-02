@@ -11,10 +11,10 @@ from typing import TypedDict, Union
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, StateGraph
 
-from coscientist import multiturn
-from coscientist.common import load_prompt, parse_hypothesis_markdown
-from coscientist.custom_types import ParsedHypothesis
-from coscientist.reasoning_types import ReasoningType
+from coscientist.utils import multiturn
+from coscientist.utils.common import load_prompt, parse_hypothesis_markdown
+from coscientist.models.custom_types import ParsedHypothesis
+from coscientist.models.reasoning_types import ReasoningType
 
 
 class IndependentState(TypedDict):
@@ -165,9 +165,13 @@ def _build_independent_generation_agent(
 def _collaborative_parsing_node(state: CollaborativeState) -> CollaborativeState:
     """
     Parse the final result from collaborative generation into a structured ParsedHypothesis object.
+
+    The final report is always written by the last agent in the transcript (the one
+    whose message triggered termination). Parsing only the last message avoids false
+    splits caused by earlier agents casually referring to '#FINAL REPORT#' in questions.
     """
-    transcript_str = "\n".join([f"{name}: {msg}" for name, msg in state["transcript"]])
-    parsed_hypothesis = parse_hypothesis_markdown(transcript_str)
+    _, last_message = state["transcript"][-1]
+    parsed_hypothesis = parse_hypothesis_markdown(last_message)
     return {**state, "hypothesis": parsed_hypothesis}
 
 

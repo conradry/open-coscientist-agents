@@ -23,16 +23,14 @@ for the observations to review.
 import asyncio
 import os
 import re
-from typing import Optional, TypedDict
+from typing import Callable, Optional, TypedDict
 
-from gpt_researcher import GPTResearcher
-from gpt_researcher.utils.enum import Tone
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, StateGraph
 
-from coscientist.common import load_prompt
-from coscientist.custom_types import ParsedHypothesis, ReviewedHypothesis
+from coscientist.utils.common import load_prompt
+from coscientist.models.custom_types import ParsedHypothesis, ReviewedHypothesis
 
 
 class ReflectionState(TypedDict):
@@ -265,12 +263,24 @@ def deep_verification_node(
     }
 
 
+def _write_assumption_research_report_llm(
+    query: str, llm: BaseChatModel
+) -> str:
+    """
+    Assess assumption validity using the LLM directly (no web search / GPTResearcher).
+    Default research backend for ``build_deep_verification_agent``.
+    """
+    prompt = load_prompt("llm_assumption_research", query=query)
+    return llm.invoke(prompt).content
+
+
 def build_deep_verification_agent(
     llm: BaseChatModel,
     review_llm: BaseChatModel,
     parallel: bool = False,
     checkpointer: Optional[BaseCheckpointSaver] = None,
     breakpoints: Optional[list[str]] = None,
+    research_fn: Callable[[str, BaseChatModel], str] = _write_assumption_research_report_llm,
 ):
     """
     Builds and configures a multinode LangGraph for comprehensive deep verification with research.
@@ -322,12 +332,12 @@ def build_deep_verification_agent(
     if parallel:
         graph.add_node(
             "assumption_researcher",
-            lambda state: _parallel_assumption_research_node(state),
+            lambda state: _parallel_assumption_research_node(state, research_fn, llm),
         )
     else:
         graph.add_node(
             "assumption_researcher",
-            lambda state: _sequential_assumption_research_node(state),
+            lambda state: _sequential_assumption_research_node(state, research_fn, llm),
         )
 
     graph.add_node(
@@ -390,13 +400,16 @@ async def _write_assumption_research_report(assumption_evaluation_query: str) ->
     str
         The research report
     """
+    from gpt_researcher import GPTResearcher
+    from gpt_researcher.utils.enum import Tone
+
     researcher = GPTResearcher(
         query=assumption_evaluation_query,
         report_type="research_report",
         report_format="markdown",
         verbose=False,
         tone=Tone.Objective,
-        config_path=os.path.join(os.path.dirname(__file__), "researcher_config.json"),
+        config_path=os.path.join(os.path.dirname(__file__), "..", "config", "gpt_researcher_config.json"),
     )
 
     # Conduct research and generate report
@@ -404,39 +417,45 @@ async def _write_assumption_research_report(assumption_evaluation_query: str) ->
     return await researcher.write_report()
 
 
+def _build_assumption_query(assumption: str, sub_assumptions: list[str]) -> str:
+    query = (
+        "Assess the validity of the following assumption and each "
+        "of its sub-assumptions using the latest research. "
+        f"Assumption: {assumption} "
+    )
+    for i, sub_assumption in enumerate(sub_assumptions):
+        query += f"Sub-assumption {i}: {sub_assumption} "
+    return query
+
+
 def _parallel_assumption_research_node(
     state: ReflectionState,
+    research_fn: Callable[[str, BaseChatModel], str],
+    llm: BaseChatModel,
 ) -> ReflectionState:
     """
-    Node that conducts parallel research for all assumptions and sub-assumptions using GPTResearcher.
+    Node that conducts parallel research for all assumptions using the provided research_fn.
     """
     parsed_assumptions = state["_parsed_assumptions"]
 
     async def _conduct_research():
-        # Create research tasks for all assumption/sub-assumption pairs
-        research_tasks = []
-        for assumption, sub_assumptions in parsed_assumptions.items():
-            query = (
-                "Assess the validity of the following assumption and each "
-                "of it's sub-assumptions using the latest research. "
-                f"Assumption: {assumption} "
+        loop = asyncio.get_event_loop()
+        tasks = [
+            loop.run_in_executor(
+                None,
+                research_fn,
+                _build_assumption_query(assumption, sub_assumptions),
+                llm,
             )
-            for i, sub_assumption in enumerate(sub_assumptions):
-                query += f"Sub-assumption {i}: {sub_assumption} "
+            for assumption, sub_assumptions in parsed_assumptions.items()
+        ]
+        return await asyncio.gather(*tasks)
 
-            task = _write_assumption_research_report(query)
-            research_tasks.append(task)
-
-        # Execute all research tasks in parallel
-        return await asyncio.gather(*research_tasks)
-
-    # Run the async operations synchronously
     try:
         research_results = asyncio.run(_conduct_research())
     except Exception as e:
         raise RuntimeError(f"Failed to conduct research for assumptions: {str(e)}")
 
-    # Organize results by assumption
     assumption_research_results = {}
     for assumption, result in zip(parsed_assumptions.keys(), research_results):
         assumption_research_results[assumption] = result
@@ -446,25 +465,17 @@ def _parallel_assumption_research_node(
 
 def _sequential_assumption_research_node(
     state: ReflectionState,
+    research_fn: Callable[[str, BaseChatModel], str],
+    llm: BaseChatModel,
 ) -> ReflectionState:
     """
-    Node that conducts sequential research for all assumptions and sub-assumptions using GPTResearcher.
+    Node that conducts sequential research for all assumptions using the provided research_fn.
     """
     parsed_assumptions = state["_parsed_assumptions"]
     assumption_research_results = {}
 
-    # Process each assumption sequentially
     for assumption, sub_assumptions in parsed_assumptions.items():
-        query = (
-            "Assess the validity of the following assumption and each "
-            "of it's sub-assumptions using the latest research. "
-            f"Assumption: {assumption} "
-        )
-        for i, sub_assumption in enumerate(sub_assumptions):
-            query += f"Sub-assumption {i}: {sub_assumption} "
-
-        # Run research for this assumption
-        result = asyncio.run(_write_assumption_research_report(query))
-        assumption_research_results[assumption] = result
+        query = _build_assumption_query(assumption, sub_assumptions)
+        assumption_research_results[assumption] = research_fn(query, llm)
 
     return {"_assumption_research_results": assumption_research_results}

@@ -8,54 +8,39 @@ import logging
 import math
 import random
 
+from typing import Callable
+
 import numpy as np
-from langchain_anthropic import ChatAnthropic
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-from coscientist.evolution_agent import build_evolution_agent
-from coscientist.final_report_agent import build_final_report_agent
-from coscientist.generation_agent import (
+from coscientist.config import (
+    SMARTER_LLM_POOL,
+    CHEAPER_LLM_POOL,
+    DEFAULT_EMBEDDING,
+    MODEL_CLAUDE_SONNET,
+    MODEL_GEMINI_FLASH,
+)
+from coscientist.agents.evolution_agent import build_evolution_agent
+from coscientist.agents.final_report_agent import build_final_report_agent
+from coscientist.agents.generation_agent import (
     CollaborativeConfig,
     IndependentConfig,
     build_generation_agent,
 )
 from coscientist.global_state import CoscientistStateManager
-from coscientist.literature_review_agent import build_literature_review_agent
-from coscientist.meta_review_agent import build_meta_review_agent
-from coscientist.reasoning_types import ReasoningType
-from coscientist.reflection_agent import build_deep_verification_agent
-from coscientist.supervisor_agent import build_supervisor_agent
+from coscientist import backends
+from coscientist.agents.meta_review_agent import build_meta_review_agent
+from coscientist.models.reasoning_types import ReasoningType
+from coscientist.agents.reflection_agent import build_deep_verification_agent
+from coscientist.agents.supervisor_agent import build_supervisor_agent
 
 # Generally reasoning models are better suited for the scientific reasoning
 # tasks entailed by the Coscientist system.
-_SMARTER_LLM_POOL = {
-    "o3": ChatOpenAI(model="o3", max_tokens=50_000, max_retries=3),
-    "gemini-2.5-pro": ChatGoogleGenerativeAI(
-        model="gemini-2.5-pro",
-        temperature=1.0,
-        max_retries=3,
-        max_tokens=50_000,
-    ),
-    "claude-sonnet-4-20250514": ChatAnthropic(
-        model="claude-sonnet-4-20250514", max_tokens=50_000, max_retries=3
-    ),
-}
-_CHEAPER_LLM_POOL = {
-    "o4-mini": ChatOpenAI(model="o4-mini", max_tokens=50_000, max_retries=3),
-    "gemini-2.5-flash": ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        temperature=1.0,
-        max_retries=3,
-        max_tokens=50_000,
-    ),
-    # Anthropic doesn't have a good cheaper model
-    "claude-sonnet-4-20250514": ChatAnthropic(
-        model="claude-sonnet-4-20250514", max_tokens=50_000, max_retries=3
-    ),
-}
+# All models are routed through LiteLLM via the `aisci/` provider prefix.
+# See coscientist/config/llm_config.py for model name constants.
+_SMARTER_LLM_POOL = SMARTER_LLM_POOL
+_CHEAPER_LLM_POOL = CHEAPER_LLM_POOL
 
 
 class CoscientistConfig:
@@ -63,13 +48,15 @@ class CoscientistConfig:
     Configuration for the Coscientist system.
 
     Note that the config for GPTResearcher which is used throughout the system
-    is defined in `researcher_config.json`.
+    is defined in ``config/gpt_researcher_config.json``.
 
     Attributes
     ----------
+    literature_review_backend : str
+        Literature review backend to use. Options: "llm" (default), "gpt_researcher".
+        Can also be set via ``COSCIENTIST_LIT_REVIEW_BACKEND`` environment variable.
     literature_review_agent_llm : BaseChatModel
-        The language model for the literature review. This LLM decides on the research
-        subtopics for GPTResearcher.
+        The language model passed to the literature review agent.
     generation_agent_llms : dict[str, BaseChatModel]
         The language models for the generation agents
     reflection_agent_llms : dict[str, BaseChatModel]
@@ -89,25 +76,24 @@ class CoscientistConfig:
 
     def __init__(
         self,
+        literature_review_backend: str | None = "llm",
         literature_review_agent_llm: BaseChatModel = _SMARTER_LLM_POOL[
-            "claude-sonnet-4-20250514"
+            MODEL_CLAUDE_SONNET
         ],
         generation_agent_llms: dict[str, BaseChatModel] = _SMARTER_LLM_POOL,
         reflection_agent_llms: dict[str, BaseChatModel] = _SMARTER_LLM_POOL,
         evolution_agent_llms: dict[str, BaseChatModel] = _SMARTER_LLM_POOL,
-        meta_review_agent_llm: BaseChatModel = _CHEAPER_LLM_POOL["gemini-2.5-flash"],
+        meta_review_agent_llm: BaseChatModel = _CHEAPER_LLM_POOL[MODEL_GEMINI_FLASH],
         supervisor_agent_llm: BaseChatModel = _SMARTER_LLM_POOL[
-            "claude-sonnet-4-20250514"
+            MODEL_CLAUDE_SONNET
         ],
         final_report_agent_llm: BaseChatModel = _SMARTER_LLM_POOL[
-            "claude-sonnet-4-20250514"
+            MODEL_CLAUDE_SONNET
         ],
-        proximity_agent_embedding_model: Embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small", dimensions=256
-        ),
+        proximity_agent_embedding_model: Embeddings = DEFAULT_EMBEDDING,
         specialist_fields: list[str] | None = None,
     ):
-        # TODO: Add functionality for overriding GPTResearcher config.
+        self.literature_review_builder = backends.resolve(literature_review_backend)
         self.literature_review_agent_llm = literature_review_agent_llm
         self.generation_agent_llms = generation_agent_llms
         self.reflection_agent_llms = reflection_agent_llms
@@ -117,7 +103,7 @@ class CoscientistConfig:
         self.proximity_agent_embedding_model = proximity_agent_embedding_model
         self.final_report_agent_llm = final_report_agent_llm
         if specialist_fields is None:
-            self.specialist_fields = ["biology"]
+            self.specialist_fields = ["chemistry"]
         else:
             self.specialist_fields = specialist_fields
 
@@ -280,7 +266,7 @@ class CoscientistFramework:
 
         # Perform the initial literature review.
         if not self.state_manager.has_literature_review:
-            literature_review_agent = build_literature_review_agent(
+            literature_review_agent = self.config.literature_review_builder(
                 self.config.literature_review_agent_llm
             )
             initial_lit_review_state = self.state_manager.next_literature_review_state(
@@ -395,7 +381,7 @@ class CoscientistFramework:
             # TODO: Make this configurable
             max_subtopics=5
         )
-        literature_review_agent = build_literature_review_agent(
+        literature_review_agent = self.config.literature_review_builder(
             self.config.literature_review_agent_llm
         )
         final_lit_review_state = await literature_review_agent.ainvoke(
@@ -429,7 +415,7 @@ class CoscientistFramework:
         self.state_manager.update_final_report(final_report_state)
 
     @classmethod
-    def available_actions(self) -> list[str]:
+    def available_actions(cls) -> list[str]:
         """
         List the available actions for the Coscientist system.
         """
@@ -464,4 +450,4 @@ class CoscientistFramework:
             self.state_manager.add_action(current_action)
             _ = await getattr(self, current_action)()
 
-        return self.state_manager.final_report, self.state_manager.meta_reviews[-1]
+        return self.state_manager.final_report, self.state_manager.meta_review

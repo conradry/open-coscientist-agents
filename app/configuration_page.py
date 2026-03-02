@@ -2,9 +2,7 @@ import multiprocessing
 import time
 
 import streamlit as st
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from langchain_litellm import ChatLiteLLM
 
 # Import the background process functions
 from background import (
@@ -15,7 +13,7 @@ from background import (
 )
 
 # Import the configuration agent and required models
-from coscientist.configuration_agent import ConfigurationChatManager
+from coscientist.agents.configuration_agent import ConfigurationChatManager
 
 # Import coscientist framework components
 from coscientist.global_state import CoscientistState
@@ -24,16 +22,9 @@ from coscientist.global_state import CoscientistState
 def get_llm_options():
     """Get available LLM options for the chat interface."""
     return {
-        "o3": ChatOpenAI(model="o3", max_tokens=5000, max_retries=3),
-        "Gemini 2.5 Pro": ChatGoogleGenerativeAI(
-            model="gemini-2.5-pro",
-            temperature=1.0,
-            max_retries=3,
-            max_tokens=5000,
-        ),
-        "Claude Sonnet 4": ChatAnthropic(
-            model="claude-sonnet-4-20250514", max_tokens=5000, max_retries=3
-        ),
+        "o3": ChatLiteLLM(model="aisci/o3", max_tokens=5000),
+        "Gemini 2.5 Pro": ChatLiteLLM(model="aisci/gemini-2.5-pro", max_tokens=5000),
+        "Claude Sonnet 4": ChatLiteLLM(model="aisci/claude-sonnet-4-5-20250929", max_tokens=5000),
     }
 
 

@@ -25,9 +25,9 @@ from typing import Optional  # Add Optional
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from coscientist import multiturn
-from coscientist.common import load_prompt
-from coscientist.custom_types import RankingMatchResult, ReviewedHypothesis
+from coscientist.utils import multiturn
+from coscientist.utils.common import load_prompt
+from coscientist.models.custom_types import RankingMatchResult, ReviewedHypothesis
 
 # Constants
 DEFAULT_ELO = 1200
@@ -351,7 +351,7 @@ class EloTournament:
 
         return records
 
-    def summarize_tournament_trajectory(self) -> str:
+    def summarize_tournament_trajectory(self) -> dict:
         """
         Summarizes the trajectory of the tournament for the supervisor agent.
         """
